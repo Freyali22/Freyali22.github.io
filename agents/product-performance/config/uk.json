@@ -1,0 +1,9 @@
+{
+  "region": "uk",
+  "name": "United Kingdom",
+  "currency": "GBP",
+  "locale": "en-GB",
+  "fiscal": { "year": "FY2026/27", "last_year": "FY2025/26", "year_starts": "2026-04-06", "week_starts": "Mon" },
+  "channels": ["Stores", "Concessions", "Online"],
+  "thresholds": { "low_stock_weeks": 5, "overstock_weeks": 14, "flag_change_pct": 10 }
+}

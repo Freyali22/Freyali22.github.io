@@ -1,0 +1,9 @@
+{
+  "region": "na",
+  "name": "North America",
+  "currency": "USD",
+  "locale": "en-US",
+  "fiscal": { "year": "FY2026", "last_year": "FY2025", "year_starts": "2026-02-01", "week_starts": "Sun" },
+  "channels": ["Stores", "Outlet", "Online"],
+  "thresholds": { "low_stock_weeks": 4, "overstock_weeks": 16, "flag_change_pct": 10 }
+}

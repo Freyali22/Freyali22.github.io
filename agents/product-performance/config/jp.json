@@ -1,0 +1,9 @@
+{
+  "region": "jp",
+  "name": "Japan",
+  "currency": "JPY",
+  "locale": "ja-JP",
+  "fiscal": { "year": "FY2026", "last_year": "FY2025", "year_starts": "2026-03-30", "week_starts": "Mon" },
+  "channels": ["Stores", "Department stores", "Online"],
+  "thresholds": { "low_stock_weeks": 4, "overstock_weeks": 16, "flag_change_pct": 8 }
+}

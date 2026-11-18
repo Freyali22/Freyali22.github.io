@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eCom Site Journey Agent — Freya Li</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<link rel="stylesheet" href="../product-performance/app.css">
+<link rel="stylesheet" href="ecom.css">
+<link rel="stylesheet" href="../product-performance/tour.css">
+</head>
+<body>
+<div class="placeholder-note">Synthetic data · fictional brand</div>
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="../../">freya.li<span class="cursor" aria-hidden="true"></span></a>
+    <nav aria-label="Main"><ul>
+      <li><a href="../../#intro">Intro</a></li>
+      <li><a class="active" href="../../#agents">AI agent projects</a></li>
+      <li><a href="../../#skills">Skillset</a></li>
+      <li><a href="../../#resume">Resume</a></li>
+      <li><a href="../../#contact">Contact</a></li>
+    </ul></nav>
+    <a class="btn sm" href="../../#resume">Resume PDF</a>
+  </div>
+</header>
+
+<main>
+<section class="page-head">
+  <div class="wrap">
+    <div class="crumb"><a href="../../#agents">AI agent projects</a> / eCom Site Journey Agent</div>
+    <div class="kicker">eCommerce</div>
+    <h1>Where shoppers drop off — and why</h1>
+    <p class="lede">A weekly agent for the eCommerce team: it follows shoppers from the email to the order, finds the step where they leave, and explains why — site, email and product in one place.</p>
+    <dl class="meta">
+      <div><dt>Audience</dt><dd>eCommerce team<small>the people it was built for</small></dd></div>
+      <div><dt>Cadence</dt><dd>Every Monday<small>part of the weekly reporting</small></dd></div>
+      <div><dt>One place</dt><dd>Site · email · product<small>reports that used to live apart</small></dd></div>
+      <div><dt>Chatbot</dt><dd>Cited answers<small>every figure checked before it shows</small></dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="try">
+  <div class="wrap">
+    <div class="try-head">
+      <h2>Try it</h2>
+      <p>Switch device, period and channel, move between the three tabs, open Weekly Insights, and ask the agent a question. Every number is computed in your browser from synthetic data for a fictional brand.</p>
+    </div>
+    <div class="ppa ecom" id="ecom" data-base=".">
+      <div class="ppa-head">
+        <div class="ppa-top">
+          <div class="ppa-title"><b>eCom Site Journey Agent</b><span>Sunday Studio · fictional brand · synthetic data</span></div>
+          <div class="ppa-actions">
+            <button type="button" class="ppa-btn ins" data-ins><span class="spk">✦</span> Weekly Insights</button>
+            <button type="button" class="ppa-btn dark" data-ask><span class="spk">✦</span> Ask the agent</button>
+            <button type="button" class="ppa-btn" data-notes aria-haspopup="dialog">Data notes</button>
+            <button type="button" class="ppa-btn" data-tour>Tour</button>
+          </div>
+        </div>
+        <div class="ppa-filters">
+          <div class="ppa-f"><label>Device</label>
+            <div class="seg" role="group" aria-label="Device">
+              <button type="button" aria-pressed="true" data-dv="all">All devices</button>
+              <button type="button" aria-pressed="false" data-dv="mobile">Mobile</button>
+              <button type="button" aria-pressed="false" data-dv="desktop">Desktop</button>
+            </div>
+          </div>
+          <div class="ppa-f"><label for="ecom-per">Period</label>
+            <select id="ecom-per" data-f="per"><option value="1">Latest week</option><option value="4">Last 4 weeks</option></select>
+          </div>
+          <div class="ppa-f"><label for="ecom-ch">Channel</label><select id="ecom-ch" data-f="ch"></select></div>
+        </div>
+        <div class="ppa-tabs" role="tablist" aria-label="Views">
+          <button type="button" role="tab" aria-selected="true" data-tab="overview"><i>1</i>Overview</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="journey"><i>2</i>Journey</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="products"><i>3</i>Products</button>
+        </div>
+      </div>
+      <div class="ppa-body">
+        <div class="ppa-ctx" aria-live="polite"></div>
+        <div class="ppa-panel" role="tabpanel"><div class="ppa-card">Loading…</div></div>
+      </div>
+
+      <div class="ppa-notes" role="dialog" aria-label="Data notes">
+        <h4>Data notes</h4>
+        <ul>
+          <li>Synthetic data from a seeded Python script, for a fictional brand: 17 fiscal weeks of sessions and journey steps by channel and device, every email send, landing pages and 14 products.</li>
+          <li><b>Step %</b> = share of the step before. <b>Bounce</b> = sessions that were not engaged (under 10 seconds, one page, no conversion), as in GA4. <b>Cart abandonment</b> = sessions with an add-to-cart that don't buy. <b>Checkout completion</b> = purchases ÷ sessions that started checkout.</li>
+          <li>Every comparison is with the prior period of the same length: last week, or the prior 4 weeks. Last year isn't in this agent.</li>
+          <li><b>Email.</b> Open rate = opens ÷ delivered; click-to-open = clicks ÷ opens. Delivered, opens and clicks aren't split by device, so the email steps show for All devices only. Site results are matched to each send on its campaign tag.</li>
+          <li>Landing pages and products read all channels; they follow the Device and Period filters.</li>
+          <li>A release note, a stock-out, a campaign link and a review theme come from a small events file — the facts a real agent reads from other systems.</li>
+          <li>Summaries, alerts and Weekly Insights are written by rules over the same sums. In production an LLM writes the prose and a checker verifies every number.</li>
+          <li><b>Chatbot.</b> Answers to the six suggested questions are built in the browser from the view you have selected, then checked before they show. A typed question that matches one gets the same answer; anything else gets "not in this data". This public page has no model, because it can't safely hold an API key.</li>
+          <li><b>Feedback review</b> shows what the owner sees each week. The week is synthetic; your own 👍 / 👎 are added to it and stay in this browser.</li>
+        </ul>
+      </div>
+
+      <aside class="ppa-chat" aria-label="Ask the agent" aria-hidden="true">
+        <div class="ppa-chat-h"><div><span class="spk">✦</span> <b>Ask the agent</b><small>Answers from this data only · every number re-checked</small><button type="button" class="ppa-fbr-link" data-fbr-open><span class="ic" aria-hidden="true">↺</span>Feedback review<span class="n">Owner view</span></button></div><div class="ppa-chat-btns"><button type="button" class="ppa-clear" data-reset title="Clear the conversation" aria-label="Clear the conversation">⟳ Clear</button><button type="button" class="ppa-x" aria-label="Close">×</button></div></div>
+        <div class="ppa-log" aria-live="polite"></div>
+        <form class="ppa-input" autocomplete="off"><input type="text" name="q" maxlength="200" placeholder="Ask about traffic, the funnel, email or products…" aria-label="Ask the agent a question"><button type="submit" aria-label="Send">↑</button></form>
+        <div class="cfoot">Grounded in this data only · questions, answers and your feedback are recorded so the agent can be improved</div>
+      </aside>
+
+      <div class="ins-modal" role="dialog" aria-modal="true" aria-labelledby="ecom-modal-title" hidden>
+        <div class="ins-back" data-ins-x></div>
+        <div class="ins-sheet">
+          <div class="ins-top">
+            <div class="ins-ttl"><span class="spk">✦</span> <b id="ecom-modal-title">Weekly Insights</b><small></small></div>
+            <button type="button" class="ins-x" data-ins-x aria-label="Close">×</button>
+          </div>
+          <div class="ins-scroll"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="story-sec">
+  <div class="wrap grid">
+    <h2>The problem</h2>
+    <div class="prose">
+      <p>The eCommerce team's Monday started with several separate reports — site traffic, the funnel, email results, product performance — each in its own tool. Answering "why did revenue drop?" meant lining them up by hand.</p>
+      <p>They needed <b>one place that follows the shopper from the email to the order</b>, finds the step that broke, and says why.</p>
+    </div>
+  </div>
+</section>
+
+<section class="story-sec">
+  <div class="wrap grid">
+    <h2>My role</h2>
+    <div class="prose">
+      <p>I designed how the agent reads the journey: which steps it follows from the email to the order, how each rate is defined, the rules that find the biggest drop and explain it, and the guardrails on the chatbot.</p>
+      <p>It runs on <b>the same framework as the Product Performance Agent</b> — a new domain, without a new code base.</p>
+    </div>
+  </div>
+</section>
+
+<section class="story-sec">
+  <div class="wrap grid">
+    <h2>How it works</h2>
+    <div>
+      <ol class="steps">
+        <li><div><b>Weekly refresh</b><span>Site sessions, email sends and product data land in the warehouse: one row per week, channel and device.</span></div></li>
+        <li><div><b>One journey</b><span>Email delivered → opened → clicked joins the site journey on each send's campaign tag, so email and site read as one funnel.</span></div></li>
+        <li><div><b>Find the break</b><span>Rules compare every step with the prior period, find the biggest drop, and split it by device, channel and landing page.</span></div></li>
+        <li><div><b>Explain it</b><span>The few facts other systems hold — a release, a stock-out, a campaign link — are matched to the break, so the summary says why, not just where.</span></div></li>
+        <li><div><b>Weekly Insights</b><span>Every Monday the agent writes the brief: what moved, why, and what to fix first, with an owner for each fix.</span></div></li>
+        <li><div><b>Chatbot</b><span>Answers come only from this data, and every figure is cited to where it appears on the page. A checker confirms the numbers, direction words and rankings before an answer is shown.</span></div></li>
+        <li><div><b>Feedback loop</b><span>Every answer can be rated, with a reason. Each week the agent groups the feedback and drafts fixes, the owner decides, and every fix becomes a regression test.</span></div></li>
+      </ol>
+      <div class="arch" aria-label="Architecture">
+        <div class="box"><b>Site · email · products</b><span>sessions · sends · page views</span></div><span class="arr">→</span>
+        <div class="box hl"><b>Same core</b><span>rules + checks</span></div><span class="arr">→</span>
+        <div class="box"><b>Journey views</b><span>overview · journey · products</span></div><span class="arr">→</span>
+        <div class="box"><b>Chatbot</b><span>cited answers</span></div>
+      </div>
+      <div class="arch-back"><span aria-hidden="true">↺</span> <b>Feedback loop</b> · ratings and fixes flow back into the agent every week</div>
+    </div>
+  </div>
+</section>
+
+<section class="story-sec">
+  <div class="wrap grid">
+    <h2>Outcome</h2>
+    <div class="prose">
+      <p><b>One place for the eCom team's Monday.</b> The site, email and product reports that used to live apart now sit in one view, so the weekly reporting starts from the same numbers — less time assembling, faster decisions.</p>
+      <p>The team uses it every Monday as part of its weekly reporting: the brief says what broke and who should fix it, and a follow-up question gets an answer in seconds.</p>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <nav class="pager" aria-label="More agents">
+    <a href="../ceo-brief/"><small>← Previous</small><b>CEO daily brief</b></a>
+    <a class="next" href="../product-performance/"><small>Next →</small><b>Product Performance Agent</b></a>
+  </nav>
+</div>
+</main>
+
+<footer><div class="wrap"><span>© 2026 Freya Li</span><span>Demos use synthetic data and a fictional brand.</span></div></footer>
+<script src="../../assets/js/site.js"></script>
+<script src="ecom.js"></script>
+<script src="../product-performance/tour.js"></script>
+<script>
+(function () {
+  const q = s => document.querySelector(s);
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const chat = q('#ecom .ppa-chat');
+  const closeChat = async () => { if (chat.classList.contains('open')) { q('#ecom .ppa-x').click(); await wait(200); } };
+  const tab = async t => { const b = q(`#ecom [data-tab="${t}"]`); if (b.getAttribute('aria-selected') !== 'true') b.click(); };
+  const show = async t => { await closeChat(); await tab(t); q('#ecom .ppa-head').scrollIntoView({ block: 'start' }); };
+  const steps = [
+    { title: 'Three views, one journey',
+      body: 'Switch device, period and channel, then move between Overview, Journey and Products.',
+      els: () => [q('#ecom .ppa-filters'), q('#ecom .ppa-tabs')], before: () => show('overview') },
+    { title: 'Weekly Insights',
+      body: 'The agent’s brief for the latest week: what moved, why, and what to fix first.',
+      els: () => [q('#ecom [data-ins]')], before: closeChat },
+    { title: 'Ask the agent',
+      body: 'Ask about traffic, the funnel, email or products. Every answer is cited and checked.',
+      els: () => [q('#ecom [data-ask]')], before: closeChat },
+    { title: 'Feedback review',
+      body: 'Rate answers with 👍 / 👎 — the AI drafts a fix, then the business team decides.',
+      els: () => [q('#ecom [data-fbr-open]')],
+      before: async () => { if (!chat.classList.contains('open')) { q('#ecom [data-ask]').click(); await wait(320); } } }
+  ];
+  const opts = { key: 'tour:ecom-journey:v2', ready: () => !!q('#ecom .ppa-kpi'),
+    canStart: () => !chat.classList.contains('open') && !q('#ecom .ins-modal:not([hidden])'),
+    onEnd: async () => { await closeChat(); await tab('overview'); } };
+  const start = () => SiteTour.auto(q('#ecom .ppa-head'), steps, opts);
+  if (q('#ecom .ppa-kpi')) start(); else document.addEventListener('ecom:ready', start, { once: true });
+  q('#ecom [data-tour]').addEventListener('click', () => SiteTour.start(steps, opts));
+})();
+</script>
+</body>
+</html>

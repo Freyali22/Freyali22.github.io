@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freya Li — AI agents that business teams actually use</title>
+<meta name="description" content="Freya Li, data science & analytics manager in New York. I build AI agents that business teams actually use.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="#intro">freya.li<span class="cursor" aria-hidden="true"></span></a>
+    <nav aria-label="Main"><ul>
+      <li><a href="#intro">Intro</a></li>
+      <li><a href="#agents">AI agent projects</a></li>
+      <li><a href="#skills">Skillset</a></li>
+      <li><a href="#resume">Resume</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul></nav>
+    <a class="btn sm" href="assets/docs/Freya-Li-Resume.pdf" target="_blank" rel="noopener">Resume PDF</a>
+  </div>
+</header>
+
+<main>
+<!-- INTRO: just me -->
+<section class="hero" id="intro">
+  <div class="wrap">
+    <div>
+      <p class="hello rise d1">Hi, I'm Freya — data science &amp; analytics manager in New York.</p>
+      <h1 class="rise d2">I build AI agents that business teams <em>actually use.</em></h1>
+      <p class="lede rise d3">7 years of turning data into decisions, from measurement and experimentation at Meta to AI agents at Tapestry. I led my team's first agent, now used by 1,000+ people across five regions, and built the framework 50+ agents run on. I lead a team of three and still love being hands-on.</p>
+      <dl class="facts rise d3">
+        <div><dt>Now</dt><dd>Tapestry (Coach · Kate Spade), 2025–</dd></div>
+        <div><dt>Before</dt><dd>Meta, 2021–2025</dd></div>
+        <div><dt>Based in</dt><dd>New York City</dd></div>
+      </dl>
+      <div class="ctas rise d4">
+        <a class="btn solid" href="#agents">See my agents</a>
+        <a class="btn" href="#resume">Read my resume</a>
+      </div>
+      <a class="scroll-cue rise d4" href="#agents">scroll <span aria-hidden="true">↓</span></a>
+    </div>
+    <figure class="portrait rise d2">
+      <div class="photo"><img src="assets/img/freya-antarctica.jpg" alt="Freya on the snow in Antarctica, with a gentoo penguin behind her" width="720" height="960"></div>
+      <figcaption><i></i>Yep, that's me</figcaption>
+      <p class="portrait-note">Me with the little penguins in Antarctica <span class="emoji" aria-hidden="true">🐧</span><a class="more-travels" href="#beyond">More travels <span aria-hidden="true">→</span></a></p>
+    </figure>
+  </div>
+</section>
+
+<!-- AGENT PROJECTS -->
+<section class="block" id="agents">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><div class="kicker">~/ai-agent-projects</div><h2>AI agent projects</h2></div>
+      <p>Each one has its own page with a working demo and the story behind it — rebuilt from scratch on a fictional brand with synthetic data.</p>
+    </div>
+
+    <div class="agent-grid two">
+      <a class="acard feature" href="agents/product-performance/">
+        <div style="display:flex;flex-direction:column;gap:14px;height:100%">
+          <div class="cat">Flagship · framework</div>
+          <h3>Product Performance Agent</h3>
+          <p>Weekly sales, product and inventory insights for merchandising teams. Buyers used to spend half a day preparing for the weekly meeting; now they ask the agent. A shared core plus one config file per region means a new region takes about 30 minutes.</p>
+          <span class="metric">4–5 h → 20 min</span>
+          <div class="tags"><span>Python</span><span>SQL</span><span>LLM chatbot</span><span>config-driven</span></div>
+          <span class="go">View project <span aria-hidden="true">→</span></span>
+        </div>
+        <div class="thumb" aria-hidden="true">
+          <div class="kpis">
+            <div class="kpi"><div class="lab">Net sales</div><div class="val">$3.07M</div><div class="dl up">▲ 5.0% vs LY</div></div>
+            <div class="kpi"><div class="lab">Units sold</div><div class="val">30.8K</div><div class="dl down">▼ 0.8% vs LY</div></div>
+            <div class="kpi"><div class="lab">Weeks of supply</div><div class="val">8.8</div><div class="dl">+0.1 vs LY</div></div>
+          </div>
+          <svg viewBox="0 0 300 90" style="width:100%;height:110px;margin-top:10px" preserveAspectRatio="none">
+            <polyline fill="none" stroke="#a8a59c" stroke-width="2" stroke-dasharray="5 4" points="0,73 25,70 50,65 75,66 100,58 125,54 150,53 175,45 200,39 225,40 250,33 275,26 300,20"/>
+            <polyline fill="none" stroke="#a4471f" stroke-width="2" points="0,80 25,74 50,76 75,66 100,57 125,57 150,48 175,42 200,41 225,32 250,24 275,21 300,10"/>
+          </svg>
+        </div>
+      </a>
+
+      <a class="acard" href="agents/ceo-brief/">
+        <div class="cat">Executive briefing</div>
+        <h3>CEO daily brief</h3>
+        <div class="thumb" aria-hidden="true" style="display:flex;flex-direction:column;gap:7px">
+          <div><b style="font:500 11.5px var(--mono);color:var(--accent)">Sales</b>  Yesterday +6% vs LY</div>
+          <div><b style="font:500 11.5px var(--mono);color:var(--accent)">Watch</b>  Outerwear stock thin</div>
+          <div><b style="font:500 11.5px var(--mono);color:var(--accent)">Market</b>  Shares +1.2% vs peers</div>
+        </div>
+        <p>A morning brief and a chatbot for the CEO and senior executives.</p>
+        <span class="metric">Built for the C-suite</span>
+        <span class="go">View project <span aria-hidden="true">→</span></span>
+      </a>
+
+      <a class="acard" href="agents/ecom-funnel/">
+        <div class="cat">eCommerce</div>
+        <h3>eCom Site Journey Agent</h3>
+        <div class="thumb" aria-hidden="true">
+          <div class="funnel">
+            <div class="fstep"><span>Sessions</span><div class="bar"><i style="width:100%"></i></div><span>100%</span></div>
+            <div class="fstep"><span>Product</span><div class="bar"><i style="width:46%"></i></div><span>46%</span></div>
+            <div class="fstep hl"><span>Cart</span><div class="bar"><i style="width:11%"></i></div><span>11%</span></div>
+          </div>
+        </div>
+        <p>Follows shoppers from the email to the order, finds the step that broke, and says why.</p>
+        <span class="metric">Site · email · product, every Monday</span>
+        <span class="go">View project <span aria-hidden="true">→</span></span>
+      </a>
+
+      <a class="acard" href="agents/qa/" hidden>
+        <div class="cat">Quality &amp; evaluation</div>
+        <h3>QA agent for chatbot answers</h3>
+        <div class="thumb" aria-hidden="true" style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between"><span>Outerwear up 12.4%</span><span class="pill ok">✓ 3 of 3</span></div>
+          <div style="display:flex;justify-content:space-between"><span>UK weeks of supply 9.1</span><span class="pill err">✗ source 8.3</span></div>
+          <div style="display:flex;justify-content:space-between"><span>Top 5 styles, Japan</span><span class="pill ok">✓ 5 of 5</span></div>
+        </div>
+        <p>Checks every number the chatbot says against the source, then an LLM judge scores the rest.</p>
+        <span class="metric">Claim checker + LLM judge</span>
+        <span class="go">View project <span aria-hidden="true">→</span></span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- SKILLSET -->
+<section class="block" id="skills">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><div class="kicker">~/skillset</div><h2>What I bring</h2></div>
+      <p>Seven years across Meta and retail: the analytics foundations, the agent layer on top, and the team that ships it.</p>
+    </div>
+    <div class="skills">
+      <div class="skill"><h3>AI agents</h3><ul>
+        <li>Agent &amp; framework design<small>daily</small></li>
+        <li>Chatbots with guardrails<small>shipped</small></li>
+        <li>LLM-as-judge evaluation<small>built</small></li>
+        <li>Agentic loops<small>prototyping</small></li>
+      </ul></div>
+      <div class="skill"><h3>Analytics foundations</h3><ul>
+        <li>SQL · Snowflake<small>daily</small></li>
+        <li>Python · pandas<small>daily</small></li>
+        <li>Data modeling<small>core craft</small></li>
+        <li>Experimentation &amp; metrics<small>Meta years</small></li>
+      </ul></div>
+      <div class="skill"><h3>Leading &amp; shipping</h3><ul>
+        <li>Managing a team of 3<small>now</small></li>
+        <li>Hiring end to end<small>designed it</small></li>
+        <li>Five-region rollouts<small>shipped</small></li>
+        <li>Feedback loops with users<small>weekly</small></li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- BEYOND WORK -->
+<section class="block" id="beyond">
+  <div class="wrap">
+    <div class="sec-head">
+      <div><div class="kicker">~/off-the-clock</div><h2>Beyond work</h2></div>
+      <p>Piano keeps me patient; travel keeps me curious.<br>20+ countries and counting. You only live once.</p>
+    </div>
+    <div class="beyond">
+      <figure class="ph"><img src="assets/img/beyond-piano.jpg" alt="Freya playing a grand piano" width="900" height="1200" loading="lazy"><figcaption>At the piano</figcaption></figure>
+      <figure class="ph"><img src="assets/img/beyond-machu-picchu.jpg" alt="Freya above the ruins of Machu Picchu" width="900" height="1200" loading="lazy"><figcaption>Machu Picchu, Peru</figcaption></figure>
+      <figure class="ph"><img src="assets/img/beyond-torres-del-paine.jpg" alt="Freya at the lagoon below the granite towers of Torres del Paine" width="896" height="1200" loading="lazy"><figcaption>Torres del Paine, Chile</figcaption></figure>
+      <figure class="ph"><img src="assets/img/beyond-andes-flamingos.jpg" alt="Freya at a high Andean lagoon with flamingos in Bolivia" width="900" height="1200" loading="lazy"><figcaption>Andean lagoon, Bolivia</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- RESUME -->
+<section class="block" id="resume">
+  <div class="wrap">
+    <div class="sec-head"><div><div class="kicker">~/resume</div><h2>Experience</h2></div></div>
+    <div class="resume">
+      <div>
+        <div class="job"><div class="when">2025 — now</div><div><h3>Tapestry</h3><p>Manager, Data Science Analytics. Built the team's first AI agent and the framework 50+ agents run on; lead a team of three.</p></div></div>
+        <div class="job"><div class="when">2021 — 2025</div><div><h3>Meta</h3><p>Marketing Science Partner. Advised 4,000+ advertisers on experimentation and measurement (A/B, lift, MMM, MTA) and led the global rollout of an ad-proposal automation tool that tripled test volume.</p></div></div>
+        <div class="job"><div class="when">2019 — 2021</div><div><h3>ITN Networks</h3><p>Data Analyst. Built marketing mix models and automated SQL and Tableau reporting for retail and eCommerce clients. Before that, supply-chain KPI analytics at DIRECT LINK (PostNord).</p></div></div>
+        <div class="job"><div class="when">Education</div><div><h3>University of Rochester, Simon Business School</h3><p>M.S. in Marketing Analytics (STEM). B.A. in Economics, Sichuan University.</p></div></div>
+      </div>
+      <div class="pdf">
+        <a class="sheet" href="assets/docs/Freya-Li-Resume.pdf" target="_blank" rel="noopener"><img src="assets/img/resume-preview.jpg" alt="Preview of Freya Li's one-page resume" width="695" height="900" loading="lazy"></a>
+        <a class="btn solid" href="assets/docs/Freya-Li-Resume.pdf" download="Freya-Li-Resume.pdf">Download resume (PDF)</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="contact" id="contact">
+  <div class="wrap">
+    <div class="kicker">~/contact</div>
+    <h2>Looking for an analytics &amp; AI lead? Let's talk.</h2>
+    <div class="row">
+      <button class="email" type="button" data-copy="Yuanlee1225@gmail.com">Yuanlee1225@gmail.com <em>Copy</em></button>
+      <a class="btn" href="https://www.linkedin.com/in/yuanlee1225" target="_blank" rel="noopener">LinkedIn</a>
+      <a class="btn" href="https://github.com/Freyali22">GitHub</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer><div class="wrap"><span>© 2026 Freya Li</span><span>Demos use synthetic data and a fictional brand.</span></div></footer>
+<script src="assets/js/site.js"></script>
+</body>
+</html>
