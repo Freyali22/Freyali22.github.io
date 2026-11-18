@@ -451,6 +451,25 @@
     </div>`;
   }
   const modal = $('.ins-modal');
+  // Keyboard focus stays inside the open dialog; in the Try it side-by-side view (html.try-duo) the chat
+  // beside it is part of the loop too, so Tab moves between the review and the chat but never behind them.
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Tab' || modal.hidden) return;
+    const zones = [modal].concat(document.documentElement.classList.contains('try-duo') && chat.classList.contains('open') ? [chat] : []);
+    const f = zones.flatMap(z => [...z.querySelectorAll('button, summary, [href], textarea, input, select')])
+      .filter(x => !x.disabled && x.getClientRects().length && getComputedStyle(x).visibility !== 'hidden');
+    if (!f.length) return;
+    e.preventDefault();
+    const i = f.indexOf(document.activeElement);
+    f[i === -1 ? 0 : (i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+  });
+  { // Data notes is a disclosure, not a dialog: tell assistive tech whether it is open
+    const nEl = $('.ppa-notes'), nBtn = $('[data-notes]');
+    if (nEl && nBtn) {
+      nBtn.setAttribute('aria-expanded', 'false'); nBtn.setAttribute('aria-controls', nEl.id || (nEl.id = 'ppa-notes'));
+      new MutationObserver(() => nBtn.setAttribute('aria-expanded', nEl.classList.contains('open'))).observe(nEl, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
   let opener = null;
   function openReview(from) { opener = from || null; modal.hidden = false; document.documentElement.classList.add('ins-lock'); $('.ins-scroll').innerHTML = feedbackReview(); $('.ins-scroll').scrollTop = 0; $('.ins-x').focus(); }
   function closeReview() { if (modal.hidden) return; modal.hidden = true; document.documentElement.classList.remove('ins-lock'); (opener && opener.isConnected ? opener : $('[data-fbr-open]')).focus(); }
@@ -533,7 +552,7 @@
   });
   root.addEventListener('change', e => { if (e.target.matches('[data-region-sel]')) { st.region = e.target.value; render(); } });
   root.addEventListener('submit', e => { e.preventDefault(); const inp = $('.ppa-input input'), t = inp.value.trim(); if (t) { inp.value = ''; typed(t); } });
-  root.addEventListener('keydown', e => { if (e.key === 'Escape' && chat.classList.contains('open')) $('.ppa-x').click(); });
+  root.addEventListener('keydown', e => { if (e.key !== 'Escape' || !modal.hidden) return; $('.ppa-notes').classList.remove('open'); if (chat.classList.contains('open')) $('.ppa-x').click(); });
   // bar tooltips in the daily chart
   const tipEl = $('.ceo-tip');
   root.addEventListener('mouseover', e => { const i = e.target.closest('.bars i'); if (!i) return; tipEl.textContent = i.dataset.tip; tipEl.hidden = false; const r = i.getBoundingClientRect(), rr = root.getBoundingClientRect(); tipEl.style.left = Math.min(r.left - rr.left, rr.width - 260) + 'px'; tipEl.style.top = (r.top - rr.top - 34) + 'px'; });

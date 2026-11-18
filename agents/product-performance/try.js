@@ -105,8 +105,7 @@
       };
       new MutationObserver(put).observe(sc, { childList: true });
       new MutationObserver(() => { if (m.hidden) { hint = false; html.classList.remove('try-duo'); } else put(); }).observe(m, { attributes: true, attributeFilter: ['hidden'] });
-      // side by side, the chat sits outside the dialog: let Tab reach it
-      m.addEventListener('keydown', e => { if (e.key === 'Tab' && duo()) e.stopPropagation(); }, true);
+      // side by side, Tab moves between the review and the chat: each page's dialog focus loop includes the chat when html.try-duo is set
     });
     // side by side: a rating on the right refreshes the review on the left at once
     let fbN = 0;

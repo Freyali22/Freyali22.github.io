@@ -949,6 +949,25 @@
   // ---------------------------------------------------------------- modal (Weekly Insights · Feedback review)
   // Opens as a newsletter over the dashboard (same as the production agent's modal); the dashboard stays put behind it.
   const modal = $('.ins-modal');
+  // Keyboard focus stays inside the open dialog; in the Try it side-by-side view (html.try-duo) the chat
+  // beside it is part of the loop too, so Tab moves between the review and the chat but never behind them.
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Tab' || modal.hidden) return;
+    const zones = [modal].concat(document.documentElement.classList.contains('try-duo') && chat.classList.contains('open') ? [chat] : []);
+    const f = zones.flatMap(z => [...z.querySelectorAll('button, summary, [href], textarea, input, select')])
+      .filter(x => !x.disabled && x.getClientRects().length && getComputedStyle(x).visibility !== 'hidden');
+    if (!f.length) return;
+    e.preventDefault();
+    const i = f.indexOf(document.activeElement);
+    f[i === -1 ? 0 : (i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+  });
+  { // Data notes is a disclosure, not a dialog: tell assistive tech whether it is open
+    const nEl = $('.ppa-notes'), nBtn = $('[data-notes]');
+    if (nEl && nBtn) {
+      nBtn.setAttribute('aria-expanded', 'false'); nBtn.setAttribute('aria-controls', nEl.id || (nEl.id = 'ppa-notes'));
+      new MutationObserver(() => nBtn.setAttribute('aria-expanded', nEl.classList.contains('open'))).observe(nEl, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
   let opener = null;
   function renderModal() {
     const wk = D.weeks[D.weeks.length - 1].wk, ins = st.modal === 'ins';
