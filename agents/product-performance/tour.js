@@ -120,12 +120,16 @@
     show(0);
   }
 
+  // First visit: never open the tour over the demo — just pulse the "Take the tour" button a few times.
   function auto(root, steps, opts = {}) {
     if (seen(opts) || !root) return;
     const go = async () => {
       for (let t = 0; t < 60 && opts.ready && !opts.ready(); t++) await sleep(150);
       await sleep(400);
-      if (!opts.canStart || opts.canStart()) start(steps, opts);
+      const b = opts.button || document.querySelector('[data-tour]');
+      if (!b) return;
+      b.classList.add('tour-hint');
+      b.addEventListener('animationend', () => b.classList.remove('tour-hint'), { once: true });
     };
     if (!('IntersectionObserver' in window)) return go();
     const io = new IntersectionObserver(es => {

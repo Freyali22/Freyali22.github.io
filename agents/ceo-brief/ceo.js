@@ -383,7 +383,7 @@
   // same layout as the Product Performance Agent: a one-line hint, separate question boxes, then the scope note
   const sugHTML = () => {
     const v = view(st), scope = `${st.brand === 'all' ? 'both brands' : st.brand}, ${st.region === 'all' ? 'all regions' : st.region}`;
-    return `<div class="hint">I read the figures for <b>${FRAME[st.tf] === 'Day' ? dlabel(v.e) : (st.tf === 'day' ? dlabel(v.e) : FRAME[st.tf])}</b> through ${dlabel(v.e)}, ${esc(scope)}. Start with one of these —</div>
+    return `<div class="hint">I read the figures for <b>${FRAME[st.tf] === 'Day' ? dlabel(v.e) : (st.tf === 'day' ? dlabel(v.e) : FRAME[st.tf])}</b> through ${dlabel(v.e)}, ${esc(scope)}; weekly product data runs through Sat 11/14. Start with one of these —</div>
       <div class="ppa-sugtop">${QS.map((x, i) => `<button type="button" data-i="${i}"${asked.has(i) ? ' disabled' : ''}>→ ${esc(x.q)}</button>`).join('')}
       <div class="ppa-scope"><b>What it covers:</b> the figures on this brief for the view you have selected, and the wording on its tabs. <b>Not:</b> email or calendar, plan, or anything outside this brief — those get "not in this brief" rather than a guess.</div></div>`;
   };

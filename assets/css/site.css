@@ -188,11 +188,14 @@ figure.ph figcaption{position:absolute;left:0;right:0;bottom:0;padding:36px 14px
 .pdf a.sheet img{display:block;width:100%;height:auto}
 .pdf .sheet i{display:block;height:6px;background:var(--paper-2);border-radius:3px}
 .pdf .sheet i.h{height:9px;background:#d8d3c6;margin-top:8px}
-.contact{padding:110px 0 120px;border-top:1px solid var(--rule)}
+.contact{padding:72px 0 110px;border-top:1px solid var(--rule)}
 .contact h2{font-size:clamp(40px,5vw,64px);line-height:1.05;max-width:13em}
 .contact .row{display:flex;gap:12px;margin-top:34px;flex-wrap:wrap;align-items:center}
 .email{font:500 15px var(--mono);border:1px solid var(--ink);border-radius:999px;padding:0 18px;min-height:44px;display:inline-flex;align-items:center;gap:12px;background:var(--card);cursor:pointer;color:var(--ink)}
 .email em{font-style:normal;font-family:var(--sans);font-size:13px;color:var(--accent)}
+a.email{color:var(--ink);text-decoration:none}
+a.email:hover{background:var(--ink);color:var(--paper)}
+.copy{font:500 13px var(--sans);color:var(--accent);background:none;border:0;padding:0 6px;min-height:44px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 footer{border-top:1px solid var(--rule);padding:22px 0;font-size:13px;color:var(--muted)}
 footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 

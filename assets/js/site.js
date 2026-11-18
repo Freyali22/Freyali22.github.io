@@ -22,7 +22,7 @@
   document.querySelectorAll('[data-copy]').forEach(btn => {
     btn.addEventListener('click', () => {
       navigator.clipboard && navigator.clipboard.writeText(btn.dataset.copy);
-      const lab = btn.querySelector('em');
+      const lab = btn.querySelector('em') || btn;
       if (lab) { lab.textContent = 'Copied'; setTimeout(() => (lab.textContent = 'Copy'), 1600); }
     });
   });
