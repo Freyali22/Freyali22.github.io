@@ -20,7 +20,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../../assets/css/site.css">
 <link rel="stylesheet" href="app.css">
-<link rel="stylesheet" href="tour.css">
 </head>
 <body>
 <div class="placeholder-note">Synthetic data · fictional brand</div>
@@ -58,8 +57,13 @@
 <section class="try">
   <div class="wrap">
     <div class="try-head">
-      <h2>Try it</h2>
-      <p>Switch regions, filters and tabs, open the agent’s Weekly Insights, then ask it a question. Each region is one config file — currency, calendar, channels and thresholds change; the code doesn't.</p>
+      <h2>Try it <span class="try-dur">· 30 seconds</span></h2>
+      <ol class="try-steps" aria-label="Three things to try">
+        <li><button type="button" data-step="1"><i>1</i><span><b>Read the weekly brief</b><small>Open Weekly Insights: what moved, why, and what to do next.</small></span><em aria-hidden="true">→</em></button></li>
+        <li><button type="button" data-step="2"><i>2</i><span><b>Ask the agent: “How did last week go?”</b><small>Opens the chat. Watch the tool calls run and every number get re-checked.</small></span><em aria-hidden="true">→</em></button></li>
+        <li><button type="button" data-step="3"><i>3</i><span><b>Rate the answer</b><small>👍 / 👎, then see the feedback review the business team signs off.</small></span><em aria-hidden="true">→</em></button></li>
+      </ol>
+      <p class="try-note">Or explore on your own: switch region, period and channel, and move between the four tabs. Each region is one config file — currency, calendar, channels and thresholds change; the code doesn't.</p>
     </div>
 
     <div class="ppa" id="ppa" data-base=".">
@@ -70,7 +74,6 @@
             <button type="button" class="ppa-btn ins" data-ins aria-pressed="false"><span class="spk">✦</span> Weekly Insights</button>
             <button type="button" class="ppa-btn dark" data-ask><span class="spk">✦</span> Ask the agent</button>
             <button type="button" class="ppa-btn" data-notes aria-haspopup="dialog">Data notes</button>
-            <button type="button" class="ppa-btn" data-tour>Take the tour</button>
           </div>
         </div>
         <div class="ppa-filters">
@@ -199,7 +202,7 @@
 
 <div class="wrap">
   <nav class="pager" aria-label="More agents">
-    <a href="../ecom-funnel/"><small>← Previous</small><b>eCom Site Journey Agent</b></a>
+    <a href="../qa/"><small>← Previous</small><b>QA Agent</b></a>
     <a class="next" href="../ceo-brief/"><small>Next →</small><b>CEO Morning Brief</b></a>
   </nav>
 </div>
@@ -208,39 +211,11 @@
 <footer><div class="wrap"><span>© 2026 Freya Li</span><span>Demos use synthetic data and a fictional brand.</span></div></footer>
 <script src="../../assets/js/site.js"></script>
 <script src="app.js"></script>
-<script src="tour.js"></script>
+<script src="try.js"></script>
 <script>
-(function () {
-  const q = s => document.querySelector(s);
-  const chat = q('.ppa-chat');
-  let opened = false;
-  const wait = ms => new Promise(r => setTimeout(r, ms));
-  const closeChat = async () => { if (opened && chat.classList.contains('open')) { q('.ppa-x').click(); opened = false; await wait(300); } };
-  const steps = [
-    { title: 'Four views, three regions',
-      body: 'Switch region, period and channel, then move between the four tabs.',
-      els: () => [q('.ppa-filters'), q('.ppa-tabs')], before: closeChat },
-    { title: 'Weekly Insights',
-      body: 'The agent’s brief for the latest week: what moved, why, and what to do next.',
-      els: () => [q('[data-ins]')], before: closeChat },
-    { title: 'Ask the agent',
-      body: 'Ask about sales, products, customers or stock, and see the tool calls behind each answer.',
-      els: () => [q('[data-ask]')], before: closeChat },
-    { title: 'Feedback review',
-      body: 'Rate answers with 👍 / 👎 — the AI drafts a fix, then the business team decides.',
-      els: () => [q('[data-fbr-open]')],
-      before: async () => { if (!chat.classList.contains('open')) { q('[data-ask]').click(); opened = true; await wait(320); } } }
-  ];
-  const opts = {
-    key: 'tour:product-performance:v1',
-    ready: () => !!q('.ppa-kpi'),
-    canStart: () => !chat.classList.contains('open') && !q('.ins-modal:not([hidden])'),
-    onEnd: () => { closeChat(); }
-  };
-  SiteTour.auto(q('.ppa-head'), steps, opts);
-  const b = q('[data-tour]');
-  if (b) b.addEventListener('click', () => SiteTour.start(steps, opts));
-})();
+TrySteps({ root: '#ppa', done: { 1: '[data-ins]', 2: '.ppa-sugtop [data-i]' },
+  one: ctx => ctx.q('[data-ins]').click(),
+  ask: async ctx => { await ctx.openChat(); const b = ctx.q('.ppa-sugtop [data-i="0"]:not([disabled])'); if (b) b.click(); } });
 </script>
 </body>
 </html>

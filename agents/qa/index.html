@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QA Agent — Freya Li</title>
+<meta name="description" content="A live demo: an agent that re-checks the other agents' answers and briefs against the source every night, and turns each confirmed mistake into a release test. Synthetic data, fictional brand.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Freya Li">
+<meta property="og:url" content="https://freyali22.github.io/agents/qa/">
+<meta property="og:title" content="QA Agent — Freya Li">
+<meta property="og:description" content="A live demo: an agent that re-checks the other agents' answers and briefs against the source every night, and turns each confirmed mistake into a release test. Synthetic data, fictional brand.">
+<meta property="og:image" content="https://freyali22.github.io/assets/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://freyali22.github.io/assets/img/og.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/site.css">
+<link rel="stylesheet" href="../product-performance/app.css">
+<link rel="stylesheet" href="qa.css">
+</head>
+<body>
+<div class="placeholder-note">Synthetic data · fictional brand</div>
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="../../">freya.li<span class="cursor" aria-hidden="true"></span></a>
+    <nav aria-label="Main"><ul>
+      <li><a href="../../#intro">Intro</a></li>
+      <li><a class="active" href="../../#agents">AI agent projects</a></li>
+      <li><a href="../../#skills">Skillset</a></li>
+      <li><a href="../../#resume">Resume</a></li>
+      <li><a href="../../#contact">Contact</a></li>
+    </ul></nav>
+    <a class="btn sm" href="../../#resume">Resume PDF</a>
+  </div>
+</header>
+
+<main>
+<section class="page-head">
+  <div class="wrap">
+    <div class="crumb"><a href="../../#agents">AI agent projects</a> / QA Agent</div>
+    <div class="kicker">Quality &amp; evaluation</div>
+    <h1>An agent that checks the other agents' work</h1>
+    <p class="lede">Every night it re-checks what the other agents said — every chatbot answer and every brief — against the source data, asks an LLM judge to score the rest, and turns each confirmed mistake into a release test.</p>
+    <dl class="meta">
+      <div><dt>Audience</dt><dd>Agent owners<small>the people who fix what it finds</small></dd></div>
+      <div><dt>Cadence</dt><dd>Every night<small>a report every Monday</small></dd></div>
+      <div><dt>Checks</dt><dd>Every claim<small>re-computed from the source</small></dd></div>
+      <div><dt>Loop</dt><dd>Release tests<small>each confirmed issue becomes one</small></dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="try">
+  <div class="wrap">
+    <div class="try-head">
+      <h2>Try it <span class="try-dur">· 30 seconds</span></h2>
+      <ol class="try-steps" aria-label="Three things to try">
+        <li><button type="button" data-step="1"><i>1</i><span><b>Read the weekly QA report</b><small>What broke this week, why, and what to fix first — from seven nightly runs.</small></span><em aria-hidden="true">→</em></button></li>
+        <li><button type="button" data-step="2"><i>2</i><span><b>Ask why the agent's own check missed it</b><small>Opens the chat: the answer matched what the agent read, so only the nightly re-check caught it.</small></span><em aria-hidden="true">→</em></button></li>
+        <li><button type="button" data-step="3"><i>3</i><span><b>Rate the answer</b><small>👍 / 👎, then see the feedback review the owner signs off.</small></span><em aria-hidden="true">→</em></button></li>
+      </ol>
+      <p class="try-note">Or explore on your own: pick an agent and an output type, open a flag to see how it was checked, and decide the one still waiting for review. Every number is computed in your browser from synthetic data — and every example matches the other three agents' pages.</p>
+    </div>
+    <div class="ppa qa" id="qa" data-base=".">
+      <div class="ppa-head">
+        <div class="ppa-top">
+          <div class="ppa-title"><b>QA Agent</b><span>Sunday Studio · fictional brand · synthetic data</span></div>
+          <div class="ppa-actions">
+            <button type="button" class="ppa-btn ins" data-ins><span class="spk">✦</span> Weekly QA report</button>
+            <button type="button" class="ppa-btn dark" data-ask><span class="spk">✦</span> Ask the agent</button>
+            <button type="button" class="ppa-btn" data-notes aria-haspopup="dialog">Data notes</button>
+          </div>
+        </div>
+        <div class="ppa-filters">
+          <div class="ppa-f"><label for="qa-ag">Agent</label><select id="qa-ag" data-f="ag"></select></div>
+          <div class="ppa-f"><label>Output</label>
+            <div class="seg" role="group" aria-label="Output">
+              <button type="button" aria-pressed="true" data-ty="all">All outputs</button>
+              <button type="button" aria-pressed="false" data-ty="chat">Chatbot answers</button>
+              <button type="button" aria-pressed="false" data-ty="brief">Written briefs</button>
+            </div>
+          </div>
+        </div>
+        <div class="ppa-tabs" role="tablist" aria-label="Views">
+          <button type="button" role="tab" aria-selected="true" data-tab="overview"><i>1</i>Overview</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="flagged"><i>2</i>Flagged</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="trends"><i>3</i>Trends</button>
+        </div>
+      </div>
+      <div class="ppa-body">
+        <div class="ppa-ctx" aria-live="polite"></div>
+        <div class="ppa-panel" role="tabpanel"><div class="ppa-card">Loading…</div></div>
+      </div>
+
+      <div class="ppa-notes" role="dialog" aria-label="Data notes">
+        <h4>Data notes</h4>
+        <ul>
+          <li>Synthetic logs from a seeded Python script, for a fictional brand: 13 weeks of nightly QA runs over the three other demo agents — every chatbot answer and every written brief, by day.</li>
+          <li><b>Source values are real for this site.</b> Each flagged example is re-computed from the other agents' own demo data, as of the day it was asked — the share price from the CEO Morning Brief, sales and stock from the Product Performance Agent, email and journey figures from the eCom agent.</li>
+          <li><b>Claims</b> = numbers, direction words ("up", "recovering"), rankings and periods in an output. The <b>claim checker</b> re-computes each one from the source, independently of what the agent read. The <b>LLM judge</b> scores accuracy, relevance and grounding from 1 to 5, after it sees the checker's result.</li>
+          <li>An output is <b>flagged</b> when any claim doesn't match, or any judge score is 2 or lower. Flags are grouped by cause; a reviewer decides each one.</li>
+          <li><b>Inline check</b> is the check each agent runs before it shows an answer: it compares the answer with what the agent read. The nightly run catches what it can't — inputs that were late, stale or the wrong slice.</li>
+          <li>Weeks run Monday to Sunday; this week is Nov 9–15. The other agents use their own fiscal calendars, so this page labels weeks by date.</li>
+          <li><b>Chatbot.</b> Answers to the six suggested questions are built in the browser from the view you have selected, then checked before they show. A typed question that matches one gets the same answer; anything else gets "not in this data". This public page has no model, because it can't safely hold an API key.</li>
+          <li>Your reviewer decision and 👍 / 👎 stay in this browser. <b>Feedback review</b> shows what the owner sees each week; the week is synthetic.</li>
+        </ul>
+      </div>
+
+      <aside class="ppa-chat" aria-label="Ask the agent" aria-hidden="true">
+        <div class="ppa-chat-h"><div><span class="spk">✦</span> <b>Ask the agent</b><small>Answers from the QA results only · every number re-checked</small><button type="button" class="ppa-fbr-link" data-fbr-open><span class="ic" aria-hidden="true">↺</span>Feedback review<span class="n">Owner view</span></button></div><div class="ppa-chat-btns"><button type="button" class="ppa-clear" data-reset title="Clear the conversation" aria-label="Clear the conversation">⟳ Clear</button><button type="button" class="ppa-x" aria-label="Close">×</button></div></div>
+        <div class="ppa-log" aria-live="polite"></div>
+        <form class="ppa-input" autocomplete="off"><input type="text" name="q" maxlength="200" placeholder="Ask about flags, fixes or an agent…" aria-label="Ask the agent a question"><button type="submit" aria-label="Send">↑</button></form>
+        <div class="cfoot">Grounded in the QA results only · questions, answers and your feedback are recorded so the agent can be improved</div>
+      </aside>
+
+      <div class="ins-modal" role="dialog" aria-modal="true" aria-labelledby="qa-modal-title" hidden>
+        <div class="ins-back" data-ins-x></div>
+        <div class="ins-sheet">
+          <div class="ins-top">
+            <div class="ins-ttl"><span class="spk">✦</span> <b id="qa-modal-title">Weekly QA report</b><small></small></div>
+            <button type="button" class="ins-x" data-ins-x aria-label="Close">×</button>
+          </div>
+          <div class="ins-scroll"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="story-sec">
+  <div class="wrap grid">
+    <h2>The problem</h2>
+    <div class="prose">
+      <p>Once the agents had chatbots, the riskiest thing on the page was no longer a chart — it was a sentence. A wrong number in a confident answer looks exactly like a right one, and a user only needs to catch one to stop trusting all of them.</p>
+      <p>Each agent already checks its answers before showing them, but that check can only compare the answer with what the agent read. <b>When the data it read is late, stale or the wrong slice, the answer passes — and is still wrong.</b> Reading every conversation by hand doesn't scale.</p>
+    </div>
+  </div>
+</section>
+
+<section class="story-sec">
+  <div class="wrap grid">
+    <h2>My role</h2>
+    <div class="prose">
+      <p>I designed and built it: which claims it pulls out of an answer, how each one is re-computed independently of the agent, the judge's rubric, and the review loop that turns a confirmed mistake into a release test.</p>
+      <p>It runs on <b>the same framework as the agents it checks</b>, and reads the same warehouse tables they do.</p>
+    </div>
+  </div>
+</section>
+
+<section class="story-sec">
+  <div class="wrap grid">
+    <h2>How it works</h2>
+    <div>
+      <ol class="steps">
+        <li><div><b>Log everything</b><span>Every chatbot answer and every brief is stored with what the agent read: which table, which filters, and when the data last loaded.</span></div></li>
+        <li><div><b>Nightly run</b><span>At 2:00 every night the agent picks up the day's outputs from all the agents, so a problem is flagged by the next morning.</span></div></li>
+        <li><div><b>Extract claims</b><span>Every number, direction word, ranking and period becomes a claim: what it measures, for which scope and when.</span></div></li>
+        <li><div><b>Re-compute from the source</b><span>Each claim is re-computed with its own query, not from what the agent read. Match or mismatch — no opinions. This is what catches late or wrong inputs.</span></div></li>
+        <li><div><b>Judge the rest</b><span>An LLM judge scores accuracy, relevance and grounding against a fixed rubric, sees the checker's result, and explains its score.</span></div></li>
+        <li><div><b>Review</b><span>The agent owner marks each flag a real issue or a false alarm. False alarms tune the judge; real issues get a fix and an owner.</span></div></li>
+        <li><div><b>Release test</b><span>Every confirmed issue becomes a test that runs before every release, so the same mistake can't ship twice. A Weekly QA report sums it up every Monday.</span></div></li>
+      </ol>
+      <div class="arch" aria-label="Architecture">
+        <div class="box"><b>Agent outputs</b><span>chat answers · briefs · what each read</span></div><span class="arr">→</span>
+        <div class="box hl"><b>Nightly checks</b><span>claim checker + LLM judge</span></div><span class="arr">→</span>
+        <div class="box"><b>Review</b><span>real issue · false alarm</span></div><span class="arr">→</span>
+        <div class="box"><b>Release tests</b><span>run before every release</span></div>
+      </div>
+      <div class="arch-back"><span aria-hidden="true">↺</span> <b>Feedback loop</b> · confirmed issues become tests; false alarms tune the judge</div>
+    </div>
+  </div>
+</section>
+
+<section class="story-sec">
+  <div class="wrap grid">
+    <h2>Outcome</h2>
+    <div class="prose">
+      <p><b>Quality review runs itself.</b> Checking the agents' answers used to mean reading conversations by hand and re-running numbers one at a time. Now every output is checked every night — no one has to remember to look — and agent owners only spend time on the few flags that need a decision.</p>
+      <p>A wrong answer is caught the morning after, not when a user finds it. The Monday report replaces the manual write-up, and every confirmed mistake becomes a release test, so the same check never has to be done by hand twice.</p>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <nav class="pager" aria-label="More agents">
+    <a href="../ecom-funnel/"><small>← Previous</small><b>eCom Site Journey Agent</b></a>
+    <a class="next" href="../product-performance/"><small>Next →</small><b>Product Performance Agent</b></a>
+  </nav>
+</div>
+</main>
+
+<footer><div class="wrap"><span>© 2026 Freya Li</span><span>Demos use synthetic data and a fictional brand.</span></div></footer>
+<script src="../../assets/js/site.js"></script>
+<script src="qa.js"></script>
+<script src="../product-performance/try.js"></script>
+<script>
+TrySteps({ root: '#qa', done: { 1: '[data-ins]', 2: '.ppa-sugtop [data-i]' },
+  one: ctx => ctx.q('[data-ins]').click(),
+  ask: async ctx => { await ctx.openChat(); const b = ctx.q('.ppa-sugtop [data-i="3"]'); if (b && !b.disabled) b.click(); } });
+</script>
+</body>
+</html>

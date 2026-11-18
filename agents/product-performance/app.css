@@ -366,3 +366,27 @@ html.ins-lock{overflow:hidden}
 .ppa .ppa-clear{white-space:nowrap}
 .arch-back{margin-top:10px;border:1px dashed var(--accent);border-radius:var(--r-md);padding:10px 14px;font-size:13px;color:var(--ink-2);background:var(--card)}
 .arch-back span,.arch-back b{color:var(--accent);font-weight:600}
+
+/* ---------- "Try it" steps above each demo (try.js) ---------- */
+.try-dur{font:400 .55em var(--sans);color:var(--muted);letter-spacing:0}
+.try-steps{list-style:none;padding:0;margin:18px 0 10px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.try-steps button{width:100%;height:100%;display:flex;align-items:flex-start;gap:12px;text-align:left;padding:14px 16px;border:1px solid var(--rule);border-radius:14px;background:var(--card);cursor:pointer;font:inherit;color:inherit;transition:border-color .15s,box-shadow .15s}
+.try-steps button:hover{border-color:var(--accent);box-shadow:0 6px 18px -10px rgba(164,71,31,.45)}
+.try-steps i{flex:none;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font:600 13px/26px var(--mono);text-align:center;font-style:normal}
+.try-steps span{flex:1;display:flex;flex-direction:column;gap:3px}
+.try-steps b{font-weight:600;font-size:15px}
+.try-steps small{font-size:13px;color:var(--muted);line-height:1.45}
+.try-steps em{font-style:normal;color:var(--accent);font-weight:600;align-self:center}
+.try-steps .done{border-color:#cfc9b8;background:var(--paper-2)}
+.try-steps .done i{background:#2f6b4f}
+.try-steps .try-next{border-color:var(--accent);background:#fff;box-shadow:0 0 0 1px var(--accent);animation:tryNext 1.3s ease-in-out 4}
+@keyframes tryNext{0%,100%{box-shadow:0 0 0 1px var(--accent)}50%{box-shadow:0 0 0 1px var(--accent),0 0 0 6px rgba(164,71,31,.16)}}
+.try-steps button{position:relative}
+.try-steps .try-tag{position:absolute;top:-10px;right:14px;font:600 10.5px var(--mono);letter-spacing:.05em;text-transform:uppercase;background:var(--accent);color:#fff;border-radius:999px;padding:2px 9px;line-height:1.5}
+.try-steps .try-next em{animation:tryNudge 1.6s ease-in-out infinite}
+@keyframes tryNudge{0%,60%,100%{transform:translateX(0)}30%{transform:translateX(5px)}}
+.try-note{font-size:14px;color:var(--muted);margin:6px 0 0}
+.ppa-fb.try-pulse{animation:tryPulse 1s ease-in-out 3;border-radius:999px}
+@keyframes tryPulse{0%,100%{box-shadow:0 0 0 0 rgba(164,71,31,0)}45%{box-shadow:0 0 0 6px rgba(164,71,31,.25)}}
+@media (max-width:760px){.try-steps{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.try-steps .try-next,.try-steps .try-next em{animation:none}.ppa-fb.try-pulse{animation:none;box-shadow:0 0 0 3px rgba(164,71,31,.3)}}

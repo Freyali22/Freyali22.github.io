@@ -21,7 +21,6 @@
 <link rel="stylesheet" href="../../assets/css/site.css">
 <link rel="stylesheet" href="../product-performance/app.css">
 <link rel="stylesheet" href="ecom.css">
-<link rel="stylesheet" href="../product-performance/tour.css">
 </head>
 <body>
 <div class="placeholder-note">Synthetic data · fictional brand</div>
@@ -58,8 +57,13 @@
 <section class="try">
   <div class="wrap">
     <div class="try-head">
-      <h2>Try it</h2>
-      <p>Switch device, period and channel, move between the three tabs, open Weekly Insights, and ask the agent a question. Every number is computed in your browser from synthetic data for a fictional brand.</p>
+      <h2>Try it <span class="try-dur">· 30 seconds</span></h2>
+      <ol class="try-steps" aria-label="Three things to try">
+        <li><button type="button" data-step="1"><i>1</i><span><b>Read the weekly brief</b><small>Open Weekly Insights: the brief, what to fix first, and every number re-checked.</small></span><em aria-hidden="true">→</em></button></li>
+        <li><button type="button" data-step="2"><i>2</i><span><b>Ask the agent why checkout dropped</b><small>Opens the chat from the checkout alert: which step broke, since when, and why.</small></span><em aria-hidden="true">→</em></button></li>
+        <li><button type="button" data-step="3"><i>3</i><span><b>Rate the answer</b><small>👍 / 👎, then see the feedback review the business team signs off.</small></span><em aria-hidden="true">→</em></button></li>
+      </ol>
+      <p class="try-note">Or explore on your own: switch device, period and channel, and move between the three tabs. Every number is computed in your browser from synthetic data for a fictional brand.</p>
     </div>
     <div class="ppa ecom" id="ecom" data-base=".">
       <div class="ppa-head">
@@ -69,7 +73,6 @@
             <button type="button" class="ppa-btn ins" data-ins><span class="spk">✦</span> Weekly Insights</button>
             <button type="button" class="ppa-btn dark" data-ask><span class="spk">✦</span> Ask the agent</button>
             <button type="button" class="ppa-btn" data-notes aria-haspopup="dialog">Data notes</button>
-            <button type="button" class="ppa-btn" data-tour>Take the tour</button>
           </div>
         </div>
         <div class="ppa-filters">
@@ -189,7 +192,7 @@
 <div class="wrap">
   <nav class="pager" aria-label="More agents">
     <a href="../ceo-brief/"><small>← Previous</small><b>CEO Morning Brief</b></a>
-    <a class="next" href="../product-performance/"><small>Next →</small><b>Product Performance Agent</b></a>
+    <a class="next" href="../qa/"><small>Next →</small><b>QA Agent</b></a>
   </nav>
 </div>
 </main>
@@ -197,37 +200,11 @@
 <footer><div class="wrap"><span>© 2026 Freya Li</span><span>Demos use synthetic data and a fictional brand.</span></div></footer>
 <script src="../../assets/js/site.js"></script>
 <script src="ecom.js"></script>
-<script src="../product-performance/tour.js"></script>
+<script src="../product-performance/try.js"></script>
 <script>
-(function () {
-  const q = s => document.querySelector(s);
-  const wait = ms => new Promise(r => setTimeout(r, ms));
-  const chat = q('#ecom .ppa-chat');
-  const closeChat = async () => { if (chat.classList.contains('open')) { q('#ecom .ppa-x').click(); await wait(200); } };
-  const tab = async t => { const b = q(`#ecom [data-tab="${t}"]`); if (b.getAttribute('aria-selected') !== 'true') b.click(); };
-  const show = async t => { await closeChat(); await tab(t); q('#ecom .ppa-head').scrollIntoView({ block: 'start' }); };
-  const steps = [
-    { title: 'Three views, one journey',
-      body: 'Switch device, period and channel, then move between Overview, Journey and Products.',
-      els: () => [q('#ecom .ppa-filters'), q('#ecom .ppa-tabs')], before: () => show('overview') },
-    { title: 'Weekly Insights',
-      body: 'The agent’s brief for the latest week: what moved, why, and what to fix first.',
-      els: () => [q('#ecom [data-ins]')], before: closeChat },
-    { title: 'Ask the agent',
-      body: 'Ask about traffic, the funnel, email or products. Every answer is cited and checked.',
-      els: () => [q('#ecom [data-ask]')], before: closeChat },
-    { title: 'Feedback review',
-      body: 'Rate answers with 👍 / 👎 — the AI drafts a fix, then the business team decides.',
-      els: () => [q('#ecom [data-fbr-open]')],
-      before: async () => { if (!chat.classList.contains('open')) { q('#ecom [data-ask]').click(); await wait(320); } } }
-  ];
-  const opts = { key: 'tour:ecom-journey:v2', ready: () => !!q('#ecom .ppa-kpi'),
-    canStart: () => !chat.classList.contains('open') && !q('#ecom .ins-modal:not([hidden])'),
-    onEnd: async () => { await closeChat(); await tab('overview'); } };
-  const start = () => SiteTour.auto(q('#ecom .ppa-head'), steps, opts);
-  if (q('#ecom .ppa-kpi')) start(); else document.addEventListener('ecom:ready', start, { once: true });
-  q('#ecom [data-tour]').addEventListener('click', () => SiteTour.start(steps, opts));
-})();
+TrySteps({ root: '#ecom', done: { 1: '[data-ins]', 2: '.ppa-sugtop [data-i], .ppa-inv' },
+  one: ctx => ctx.q('[data-ins]').click(),
+  ask: async ctx => { const s = ctx.q('.ppa-sugtop [data-i="0"]'); if (s && s.disabled) return ctx.openChat(); const t = ctx.q('[data-tab="overview"]'); if (t.getAttribute('aria-selected') !== 'true') { t.click(); await ctx.wait(250); } const inv = ctx.q('.ppa-inv[data-q="0"]') || ctx.q('.ppa-inv'); if (inv) inv.click(); else { await ctx.openChat(); const b = ctx.q('.ppa-sugtop [data-i="0"]'); if (b) b.click(); } } });
 </script>
 </body>
 </html>

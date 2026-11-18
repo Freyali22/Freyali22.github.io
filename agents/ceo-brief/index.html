@@ -21,7 +21,6 @@
 <link rel="stylesheet" href="../../assets/css/site.css">
 <link rel="stylesheet" href="../product-performance/app.css">
 <link rel="stylesheet" href="ceo.css">
-<link rel="stylesheet" href="../product-performance/tour.css">
 </head>
 <body>
 <div class="placeholder-note">Synthetic data · fictional brand</div>
@@ -58,8 +57,13 @@
 <section class="try">
   <div class="wrap">
     <div class="try-head">
-      <h2>Try it</h2>
-      <p>Start with today's schedule, then step through Sales — the time frame, brand and region filters and the day stepper — and ask the brief a question. Every number is computed in your browser from synthetic data for a fictional brand.</p>
+      <h2>Try it <span class="try-dur">· 30 seconds</span></h2>
+      <ol class="try-steps" aria-label="Three things to try">
+        <li><button type="button" data-step="1"><i>1</i><span><b>Check today's schedule</b><small>Open the draft reply for the first item. Nothing is sent.</small></span><em aria-hidden="true">→</em></button></li>
+        <li><button type="button" data-step="2"><i>2</i><span><b>Ask the brief a question</b><small>Opens the chat. Answers come only from the brief, every number checked.</small></span><em aria-hidden="true">→</em></button></li>
+        <li><button type="button" data-step="3"><i>3</i><span><b>Rate the answer</b><small>👍 / 👎, then see the feedback review the business team signs off.</small></span><em aria-hidden="true">→</em></button></li>
+      </ol>
+      <p class="try-note">Or explore on your own: step through Sales — time frame, brand and region filters, and the day stepper. Every number is computed in your browser from synthetic data for a fictional brand.</p>
     </div>
     <div class="ppa ceo" id="ceo" data-base=".">
       <div class="ppa-head">
@@ -68,7 +72,6 @@
           <div class="ppa-actions">
             <button type="button" class="ppa-btn dark" data-ask><span class="spk">✦</span> Ask the brief</button>
             <button type="button" class="ppa-btn" data-notes aria-haspopup="dialog">Data notes</button>
-            <button type="button" class="ppa-btn" data-tour>Take the tour</button>
           </div>
         </div>
         <div class="ppa-tabs" role="tablist" aria-label="Brief sections">
@@ -182,43 +185,11 @@
 <footer><div class="wrap"><span>© 2026 Freya Li</span><span>Demos use synthetic data and a fictional brand.</span></div></footer>
 <script src="../../assets/js/site.js"></script>
 <script src="ceo.js"></script>
-<script src="../product-performance/tour.js"></script>
+<script src="../product-performance/try.js"></script>
 <script>
-(function () {
-  const q = s => document.querySelector(s);
-  const wait = ms => new Promise(r => setTimeout(r, ms));
-  const chat = q('#ceo .ppa-chat');
-  const closeChat = async () => { if (chat.classList.contains('open')) { q('#ceo .ppa-x').click(); await wait(200); } };
-  const tab = async t => { const b = q(`#ceo [data-tab="${t}"]`); if (b.getAttribute('aria-selected') !== 'true') b.click(); };
-  const firstItem = () => q('#ceo .sx .it');
-  const setDraft = async open => { const it = firstItem(), b = it && it.querySelector('[data-draft]'); if (b && (b.getAttribute('aria-expanded') === 'true') !== open) b.click(); };
-  // one step per tab, then the chat; each step opens its tab and frames the tab with its first section
-  // no fixed waits: the tour itself waits for the target to stop moving before it measures
-  const show = async t => { await closeChat(); await setDraft(false); await tab(t); q('#ceo .ppa-head').scrollIntoView({ block: 'start' }); };
-  const frame = (t, sel) => () => [q(`#ceo [data-tab="${t}"]`), q(sel)]; // the tab + its topline
-  const steps = [
-    { title: "Today's schedule",
-      body: "Built every morning from the reader's own Outlook. See the most important items at a glance, and draft a reply right from each one.",
-      els: frame('sched', '#ceo .hlbox'), before: () => show('sched') },
-    { title: 'Sales performance',
-      body: 'How the business did, and why. The meetings on Today\'s schedule pull their numbers from here.',
-      els: frame('sales', '#ceo .read p'), before: () => show('sales') },
-    { title: 'News',
-      body: 'Share price against peers, and the stories that matter for us.',
-      els: frame('news', '#ceo .ppa-kpis'), before: () => show('news') },
-    { title: 'Ask the brief',
-      body: 'Ask about any figure. Every answer is cited and checked.',
-      els: () => [q('#ceo [data-ask]')], before: closeChat },
-    { title: 'Feedback review',
-      body: 'Rate answers with 👍 / 👎 — the AI drafts a fix, then the business team decides.',
-      els: () => [q('#ceo [data-fbr-open]')],
-      before: async () => { if (!chat.classList.contains('open')) { q('#ceo [data-ask]').click(); await wait(320); } } } // open over the current tab: no tab switch
-  ];
-  const opts = { key: 'tour:ceo-brief:v10', ready: () => !!q('#ceo .sx'), canStart: () => !chat.classList.contains('open'), onEnd: async () => { await closeChat(); await tab('sched'); await setDraft(false); } };
-  const start = () => SiteTour.auto(q('#ceo .ppa-head'), steps, opts);
-  if (q('#ceo .sx')) start(); else document.addEventListener('ceo:ready', start, { once: true });
-  q('#ceo [data-tour]').addEventListener('click', () => SiteTour.start(steps, opts));
-})();
+TrySteps({ root: '#ceo', done: { 1: '[data-draft]', 2: '.ppa-sugtop [data-i]' },
+  one: async ctx => { const t = ctx.q('[data-tab="sched"]'); if (t.getAttribute('aria-selected') !== 'true') { t.click(); await ctx.wait(200); } const d = ctx.q('.sx .it [data-draft]'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); if (d) d.closest('.it').scrollIntoView({ block: 'center' }); },
+  ask: async ctx => { await ctx.openChat(); const b = ctx.q('.ppa-sugtop [data-i="0"]:not([disabled])'); if (b) b.click(); } });
 </script>
 </body>
 </html>
