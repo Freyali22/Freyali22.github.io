@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CEO daily brief — Freya Li</title>
+<title>CEO Morning Brief — Freya Li</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -31,7 +31,7 @@
 <main>
 <section class="page-head">
   <div class="wrap">
-    <div class="crumb"><a href="../../#agents">AI agent projects</a> / CEO daily brief</div>
+    <div class="crumb"><a href="../../#agents">AI agent projects</a> / CEO Morning Brief</div>
     <div class="kicker">Executive briefing</div>
     <h1>A morning brief the CEO can ask questions of</h1>
     <p class="lede">Every morning: what needs the CEO this week, how the business did, and what the market did — on one page, with a chatbot for the follow-up questions.</p>
@@ -197,10 +197,13 @@
       els: frame('news', '#ceo .ppa-kpis'), before: () => show('news') },
     { title: 'Ask the brief',
       body: 'Ask about any figure. Every answer is cited and checked.',
-      els: () => [q('#ceo .ppa-log .hint'), q('#ceo .ppa-log .ppa-sugtop')],
-      before: async () => { if (!chat.classList.contains('open')) q('#ceo [data-ask]').click(); } } // open over the current tab: no tab switch, so nothing under the old frame changes
+      els: () => [q('#ceo [data-ask]')], before: closeChat },
+    { title: 'Feedback review',
+      body: 'Rate answers with 👍 / 👎 — the AI drafts a fix, then the business team decides.',
+      els: () => [q('#ceo [data-fbr-open]')],
+      before: async () => { if (!chat.classList.contains('open')) { q('#ceo [data-ask]').click(); await wait(320); } } } // open over the current tab: no tab switch
   ];
-  const opts = { key: 'tour:ceo-brief:v9', ready: () => !!q('#ceo .sx'), canStart: () => !chat.classList.contains('open'), onEnd: async () => { await closeChat(); await tab('sched'); await setDraft(false); } };
+  const opts = { key: 'tour:ceo-brief:v10', ready: () => !!q('#ceo .sx'), canStart: () => !chat.classList.contains('open'), onEnd: async () => { await closeChat(); await tab('sched'); await setDraft(false); } };
   const start = () => SiteTour.auto(q('#ceo .ppa-head'), steps, opts);
   if (q('#ceo .sx')) start(); else document.addEventListener('ceo:ready', start, { once: true });
   q('#ceo [data-tour]').addEventListener('click', () => SiteTour.start(steps, opts));
