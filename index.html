@@ -85,7 +85,7 @@
         <div style="display:flex;flex-direction:column;gap:14px;height:100%">
           <div class="cat">Flagship · framework</div>
           <h3>Product Performance Agent</h3>
-          <p>Weekly sales, product and inventory insights for merchandising teams. Buyers used to spend half a day preparing for the weekly meeting; now they ask the agent. A shared core plus one config file per region means a new region takes about 30 minutes.</p>
+          <p>Business teams used to spend half a day pulling reports together for the weekly meeting. Now they ask the agent.</p>
           <span class="metric">4–5 h → 20 min</span>
           <div class="tags"><span>Python</span><span>SQL</span><span>LLM chatbot</span><span>config-driven</span></div>
           <span class="go">View project <span aria-hidden="true">→</span></span>
@@ -96,20 +96,31 @@
             <div class="kpi"><div class="lab">Units sold</div><div class="val">30.8K</div><div class="dl down">▼ 0.8% vs LY</div></div>
             <div class="kpi"><div class="lab">Weeks of supply</div><div class="val">8.8</div><div class="dl">+0.1 vs LY</div></div>
           </div>
-          <svg viewBox="0 0 300 90" style="width:100%;height:110px;margin-top:10px" preserveAspectRatio="none">
-            <polyline fill="none" stroke="#a8a59c" stroke-width="2" stroke-dasharray="5 4" points="0,73 25,70 50,65 75,66 100,58 125,54 150,53 175,45 200,39 225,40 250,33 275,26 300,20"/>
-            <polyline fill="none" stroke="#a4471f" stroke-width="2" points="0,80 25,74 50,76 75,66 100,57 125,57 150,48 175,42 200,41 225,32 250,24 275,21 300,10"/>
-          </svg>
+          <div class="ppa-split">
+            <svg viewBox="0 0 300 90" style="width:100%;height:120px" preserveAspectRatio="none">
+              <polyline fill="none" stroke="#a8a59c" stroke-width="2" stroke-dasharray="5 4" points="0,73 25,70 50,65 75,66 100,58 125,54 150,53 175,45 200,39 225,40 250,33 275,26 300,20"/>
+              <polyline fill="none" stroke="#a4471f" stroke-width="2" points="0,80 25,74 50,76 75,66 100,57 125,57 150,48 175,42 200,41 225,32 250,24 275,21 300,10"/>
+            </svg>
+            <div class="chat-pop">
+              <div class="q">How did last week go?</div>
+              <div class="a">Net sales were <b>$3.07M</b>, <b>+5.0%</b> vs last year. The Harbor Parka, new this year, added <b>$197K</b> on its own.<span class="chk">✓ 4 of 4 numbers match the data</span></div>
+            </div>
+          </div>
         </div>
       </a>
 
       <a class="acard" href="agents/ceo-brief/">
         <div class="cat">Executive briefing</div>
         <h3>CEO Morning Brief</h3>
-        <div class="thumb" aria-hidden="true" style="display:flex;flex-direction:column;gap:7px">
-          <div><b style="font:500 11.5px var(--mono);color:var(--accent)">Sales</b>  Yesterday +5.7% vs LY</div>
-          <div><b style="font:500 11.5px var(--mono);color:var(--accent)">Decide</b>  Outlet markdown, 25% or 30%</div>
-          <div><b style="font:500 11.5px var(--mono);color:var(--accent)">Market</b>  Shares +1.2%, peers +0.4%</div>
+        <div class="thumb" aria-hidden="true">
+          <div class="kpis two">
+            <div class="kpi"><div class="lab">Sales · Sun 11/15</div><div class="val">+5.7%</div><div class="dl up">vs last year</div></div>
+            <div class="kpi"><div class="lab">Share price</div><div class="val">+1.2%</div><div class="dl">peers +0.4%</div></div>
+          </div>
+          <svg viewBox="0 0 300 70" class="spark" preserveAspectRatio="none">
+            <polyline fill="none" stroke="#a4471f" stroke-width="2" stroke-linejoin="round" points="0,53.2 15.8,62 31.6,56.9 47.4,43.8 63.2,45.1 78.9,59.3 94.7,54.6 110.5,39 126.3,49.5 142.1,33 157.9,34.3 173.7,8 189.5,22.8 205.3,26.2 221.1,38 236.8,56.3 252.6,48.2 268.4,50.2 284.2,30.3 300,10.7"/>
+          </svg>
+          <div class="thumb-note"><span>SNDY close</span><span>last 20 trading days</span></div>
         </div>
         <p>A morning brief and a chatbot for the CEO and senior executives.</p>
         <span class="metric">Built for the C-suite</span>
@@ -120,11 +131,14 @@
         <div class="cat">eCommerce</div>
         <h3>eCom Site Journey Agent</h3>
         <div class="thumb" aria-hidden="true">
-          <div class="funnel">
+          <div class="funnel tight">
             <div class="fstep"><span>Sessions</span><div class="bar"><i style="width:100%"></i></div><span>100%</span></div>
-            <div class="fstep"><span>Product</span><div class="bar"><i style="width:44%"></i></div><span>44%</span></div>
-            <div class="fstep hl"><span>Cart</span><div class="bar"><i style="width:9%"></i></div><span>9%</span></div>
+            <div class="fstep"><span>Product</span><div class="bar"><i style="width:44.2%"></i></div><span>44%</span></div>
+            <div class="fstep"><span>Cart</span><div class="bar"><i style="width:9.1%"></i></div><span>9.1%</span></div>
+            <div class="fstep hl"><span>Checkout</span><div class="bar"><i style="width:4.3%"></i></div><span>4.3%</span></div>
+            <div class="fstep"><span>Purchase</span><div class="bar"><i style="width:2%"></i></div><span>1.97%</span></div>
           </div>
+          <div class="thumb-note"><span>Checkout → purchase, mobile</span><span class="pill err">−8.3 pt</span></div>
         </div>
         <p>Follows shoppers from the email to the order, finds the step that broke, and says why.</p>
         <span class="metric">Site · email · product, every Monday</span>
@@ -134,10 +148,16 @@
       <a class="acard" href="agents/qa/">
         <div class="cat">Quality &amp; evaluation</div>
         <h3>QA Agent</h3>
-        <div class="thumb" aria-hidden="true" style="display:flex;flex-direction:column;gap:8px">
-          <div style="display:flex;justify-content:space-between"><span>SNDY closed $48.36</span><span class="pill err">✗ source $48.26</span></div>
-          <div style="display:flex;justify-content:space-between"><span>Footwear "recovering"</span><span class="pill err">✗ 1 better week</span></div>
-          <div style="display:flex;justify-content:space-between"><span>Net sales $2.91M</span><span class="pill ok">✓ matches</span></div>
+        <div class="thumb" aria-hidden="true">
+          <div class="kpis two">
+            <div class="kpi"><div class="lab">Claims matched</div><div class="val">99.2%</div><div class="dl up">▲ from 98.9%</div></div>
+            <div class="kpi"><div class="lab">Flagged</div><div class="val">23</div><div class="dl up">▼ 8 vs last week</div></div>
+          </div>
+          <div class="funnel tight" style="margin-top:10px">
+            <div class="fstep hl"><span>CEO Brief</span><div class="bar"><i style="width:100%"></i></div><span>10</span></div>
+            <div class="fstep"><span>Product</span><div class="bar"><i style="width:90%"></i></div><span>9</span></div>
+            <div class="fstep"><span>eCom</span><div class="bar"><i style="width:40%"></i></div><span>4</span></div>
+          </div>
         </div>
         <p>Re-checks every agent's answers and briefs against the source every night, and turns each confirmed mistake into a release test.</p>
         <span class="metric">Every night · checker + LLM judge</span>
