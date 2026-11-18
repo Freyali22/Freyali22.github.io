@@ -1,6 +1,8 @@
 /* "Try it" steps above each demo: no overlay, nothing to read first. Each step runs its own action
-   and ticks itself off however the visitor gets there. Step 3 points at 👍/👎; once a rating is
-   logged it opens the Feedback review. Pages pass their own step 1 and "ask" actions. */
+   and ticks itself off however the visitor gets there. Step 3 opens the Feedback review and, on a wide
+   screen, the chat beside it with 👍/👎 highlighted: rate on the right and the review on the left updates
+   at once ("from you"). Close either first. On a narrow screen the review comes first, then the chat
+   opens at the unrated answer. Pages pass their own step 1 and "ask" actions. */
 (() => {
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const smooth = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
@@ -15,10 +17,16 @@
     const ctx = { q, wait, openChat, closeChat };
     const mark = n => {
       const b = list.querySelector(`[data-step="${n}"]`);
-      if (b && !b.classList.contains('done')) { b.classList.add('done'); b.querySelector('i').textContent = '✓'; }
+      if (b && !b.classList.contains('done')) { b.classList.add('done'); b.querySelector('i').textContent = '✓'; b.classList.remove('try-next'); b.querySelectorAll('.try-tag').forEach(t => t.remove()); }
     };
     const openReview = () => { const b = q('[data-fbr-open]'); if (b) b.click(); };
-    let armed = false;
+    let hint = false, followed = false;
+    const html = document.documentElement;
+    const wide = () => innerWidth >= 1200;
+    const duo = () => html.classList.contains('try-duo');
+    const unrated = () => [...chat.querySelectorAll('.ppa-fb')].pop();
+    const pulseFb = fb => { fb.scrollIntoView({ block: 'center', behavior: smooth }); fb.classList.remove('try-pulse'); void fb.offsetWidth; fb.classList.add('try-pulse'); };
+    const hasMine = sc => !!sc.querySelector('.fbr-r.you') || /from you/.test(sc.textContent);
     // after a step's panel closes (Weekly Insights, chat, feedback review), bring the visitor back to the steps
     // and point at the next one — no scrolling back up by hand
     let pending = null;
@@ -33,7 +41,17 @@
       const p = pending; pending = null;
       setTimeout(async () => {
         if ([...root.querySelectorAll('.ins-modal')].some(m => !m.hidden)) { pending = p; return; }
-        if (isOpen()) { if (p !== '3') { pending = p; return; } await closeChat(); }   // last step: close the chat too
+        if (isOpen()) {   // wait until the chat is closed too; after the review on a narrow screen, point at the answer
+          const fb = p === '3' && !followed && unrated();
+          if (fb) { followed = true; pulseFb(fb); }
+          pending = p; return;
+        }
+        const fb = p === '3' && !followed && unrated();
+        if (fb) {   // narrow screens: after the review, invite the optional rating right where it happens
+          followed = true; pending = p;
+          await openChat(); pulseFb(fb);
+          return;
+        }
         list.scrollIntoView({ block: 'center', behavior: smooth });
         const nx = list.querySelector('[data-step]:not(.done)');
         if (!nx) return;
@@ -50,25 +68,21 @@
     const run = {
       1: async () => { await closeChat(); await cfg.one(ctx); },
       2: () => cfg.ask(ctx),
-      3: async () => {
-        if (chat.querySelector('.ppa-fbdone') && !chat.querySelector('.ppa-fb')) { await openChat(); return openReview(); }
-        armed = true;
-        if (!chat.querySelector('.ppa-fb')) {
-          await cfg.ask(ctx);
-          for (let t = 0; t < 80 && !chat.querySelector('.ppa-fb'); t++) await wait(150);
-        }
-        await openChat();
-        const fb = [...chat.querySelectorAll('.ppa-fb')].pop();
-        if (!fb) return;
-        fb.scrollIntoView({ block: 'center', behavior: smooth });
-        fb.classList.remove('try-pulse'); void fb.offsetWidth; fb.classList.add('try-pulse');
+      3: async () => {   // the review opens at once; an answer to rate is asked for in the background if needed
+        hint = true; followed = false;
+        const need = !unrated();
+        if (wide()) html.classList.add('try-duo'); else await closeChat();
+        openReview(); mark(3);
+        if (need) { await cfg.ask(ctx); for (let t = 0; t < 80 && !unrated(); t++) await wait(150); }
+        else if (wide()) await openChat();
+        if (wide()) { followed = true; const fb = unrated(); if (fb) { await wait(200); pulseFb(fb); } }
       }
     };
 
     list.addEventListener('click', e => {
       const b = e.target.closest('[data-step]');
       if (!b) return;
-      clearNext();
+      clearNext(); pending = null;   // a new step cancels the previous step's "back to the steps"
       root.scrollIntoView({ block: 'start', behavior: smooth });
       Promise.resolve(run[b.dataset.step]()).then(() => setTimeout(() => { pending = b.dataset.step; }, 400));
     });
@@ -76,11 +90,30 @@
     document.addEventListener('click', e => {
       Object.entries(cfg.done).forEach(([n, sel]) => { if (e.target.closest(sel)) mark(n); });
     }, true);
-    // step 3 = a logged rating (👍, or 👎 + reason); after step 3 was clicked, show the owner's side
+    // step 3 = seeing the feedback review, however it was opened
+    document.addEventListener('click', e => { if (e.target.closest('[data-fbr-open], [data-fbr]')) mark(3); }, true);
+    // when step 3 opened the review, keep a one-line hint at its top (the review re-renders on every decision)
+    root.querySelectorAll('.ins-modal').forEach(m => {
+      const sc = m.querySelector('.ins-scroll'); if (!sc) return;
+      const put = () => {
+        if (!hint || m.hidden || !sc.querySelector('.fbr') || sc.querySelector('.try-hint')) return;
+        const txt = hasMine(sc) ? '<b>Your rating is in.</b> It now counts in this week\'s review — see "from you" below.'
+          : duo() ? '<b>This is what the owner sees each week.</b> Rate the answer on the right with 👍 / 👎 — it shows up here as "from you".'
+          : '<b>This is what the owner sees each week.</b> Close it and rate the answer in the chat with 👍 / 👎 — it shows up here as "from you".';
+        sc.insertAdjacentHTML('afterbegin', `<div class="try-hint">${txt}</div>`);
+        if (hasMine(sc)) sc.querySelectorAll('.fbr-sig > div, .fbr-r.you').forEach(x => { if (/from you/.test(x.textContent) || x.classList.contains('you')) x.classList.add('try-flash'); });
+      };
+      new MutationObserver(put).observe(sc, { childList: true });
+      new MutationObserver(() => { if (m.hidden) { hint = false; html.classList.remove('try-duo'); } else put(); }).observe(m, { attributes: true, attributeFilter: ['hidden'] });
+      // side by side, the chat sits outside the dialog: let Tab reach it
+      m.addEventListener('keydown', e => { if (e.key === 'Tab' && duo()) e.stopPropagation(); }, true);
+    });
+    // side by side: a rating on the right refreshes the review on the left at once
+    let fbN = 0;
     new MutationObserver(() => {
-      if (!chat.querySelector('.ppa-fbdone')) return;
-      mark(3);
-      if (armed) { armed = false; setTimeout(openReview, 700); }
+      const n = chat.querySelectorAll('.ppa-fbdone').length;
+      if (n > fbN && duo() && [...root.querySelectorAll('.ins-modal')].some(m => !m.hidden)) { const y = document.activeElement; openReview(); if (y && y.isConnected) y.focus({ preventScroll: true }); }
+      fbN = n;
     }).observe(chat, { childList: true, subtree: true });
   };
 })();

@@ -364,9 +364,10 @@
   function pack(head, lis, ledger, checks, src, stamp) {
     const html = `<div class="hl">${head}</div>${lis.length ? `<ul>${lis.map(x => `<li>${x}</li>`).join('')}</ul>` : ''}`;
     const tmp = document.createElement('div'); tmp.innerHTML = html;
+    const nCited = tmp.querySelectorAll('.cite').length + [...tmp.querySelectorAll('.cite-t')].filter(e => /\d/.test(e.textContent.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+\/\d+|#\d+|\b\d+:\d\d\b/g, ''))).length;
     tmp.querySelectorAll('.cite, .cite-t').forEach(e => e.remove());
     const loose = tmp.textContent.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+\/\d+|#\d+|\b\d+:\d\d\b|\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+(–\d+)?|1 in \d+|\b13 weeks\b/g, '').match(/[+−-]?[$£¥]?\d[\d.,]*\s?(%|pt|K|M)?/g) || [];
-    const all = [{ ok: loose.length === 0, t: `${ledger.length} ${ledger.length === 1 ? 'number' : 'numbers'}, all cited${loose.length ? ` — uncited: ${loose.join(', ')}` : ' and match the page'}` }, ...checks];
+    const all = [{ ok: loose.length === 0, t: `${nCited} ${nCited === 1 ? 'figure' : 'figures'}, all cited${loose.length ? ` — uncited: ${loose.join(', ')}` : ' and match the page'}` }, ...checks];
     if (all.some(x => !x.ok)) return `<div class="hl">Withheld — this answer failed a check, so it isn't shown.</div><div class="chk">${all.map(x => `<span class="${x.ok ? '' : 'bad'}">${x.ok ? '✓' : '✗'} ${esc(x.t)}</span>`).join('')}</div>`;
     return html + `<div class="chk">${all.map(x => `<span>✓ ${esc(x.t)}</span>`).join('')}</div><div class="stamp">${esc(wlab(TW))} · ${esc(stamp)} · ${esc(src.join(', '))}</div>`;
   }
