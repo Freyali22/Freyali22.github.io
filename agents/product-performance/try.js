@@ -2,7 +2,8 @@
    and ticks itself off however the visitor gets there. Step 3 opens the Feedback review and, on a wide
    screen, the chat beside it with 👍/👎 highlighted: rate on the right and the review on the left updates
    at once ("from you"). Close either first. On a narrow screen the review comes first, then the chat
-   opens at the unrated answer. Pages pass their own step 1 and "ask" actions. */
+   opens at the unrated answer. A rating from the "ask, then rate" step opens the review too: beside the chat on a
+   wide screen, full screen (chat closed) on a narrow one. Pages pass their own step 1 and "ask" actions. */
 (() => {
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const smooth = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
@@ -61,7 +62,38 @@
     };
     // on arrival, highlight step 1 as soon as the steps are on screen
     const hl = () => { const nx = list.querySelector('[data-step]:not(.done)'); if (nx && !list.querySelector('.try-next')) setNext(nx); };
-    if ('IntersectionObserver' in window) { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); hl(); } }, { threshold: 0.5 }); io.observe(list); } else hl();
+    if ('IntersectionObserver' in window) { const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { io.disconnect(); hl(); } }, { threshold: 0.5 }); io.observe(list.querySelector('[data-step]') || list); } else hl();   // step 1 on screen is enough (the stacked row is taller than a phone)
+    // first agent page opened in this tab: dim everything but the steps for a moment — once for the whole site. Not a gate — any click,
+    // scroll or key lifts it, and a click on a step still runs that step. ?spot shows it again for review.
+    const spotKey = 'trySpot';
+    let spotSeen = false; try { spotSeen = !!sessionStorage.getItem(spotKey); sessionStorage.setItem(spotKey, '1'); } catch (e) {}
+    if (!spotSeen || /[?&]spot\b/.test(location.search)) {
+      hl();
+      const veil = document.createElement('div'); veil.className = 'try-veil'; veil.setAttribute('aria-hidden', 'true');
+      const cap = document.createElement('div'); cap.className = 'try-cap'; cap.setAttribute('role', 'note');
+      cap.innerHTML = '<b>New here? Start with step 1</b> — about 30 seconds. Or click anywhere to explore on your own.';
+      const place = () => {   // below the row on wide screens; above it when the steps stack (step 3 is off-screen on a phone)
+        const b = list.getBoundingClientRect(), stacked = getComputedStyle(list).gridTemplateColumns.split(' ').length < 2;
+        cap.style.top = (stacked ? b.top + scrollY - cap.offsetHeight - 18 : b.bottom + scrollY + 12) + 'px'; cap.style.left = (b.left + scrollX) + 'px';
+      };
+      document.body.append(veil, cap);
+      // scroll only if step 1 isn't fully on screen; when the caption sits above the steps, leave room for it
+      const first = list.querySelector('[data-step]'), r = first.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > innerHeight - 60) {
+        const stacked = getComputedStyle(list).gridTemplateColumns.split(' ').length < 2;
+        scrollTo({ top: list.getBoundingClientRect().top + scrollY - (stacked ? cap.offsetHeight + 40 : 24), behavior: 'auto' });
+      }
+      place(); html.classList.add('try-spot');
+      requestAnimationFrame(() => { veil.classList.add('on'); cap.classList.add('on'); });
+      const evs = ['pointerdown', 'keydown', 'wheel', 'touchmove'];
+      const lift = () => {
+        evs.forEach(t => removeEventListener(t, lift, true)); removeEventListener('resize', place);
+        veil.classList.remove('on'); cap.classList.remove('on');
+        setTimeout(() => { veil.remove(); cap.remove(); html.classList.remove('try-spot'); }, 260);
+      };
+      setTimeout(() => evs.forEach(t => addEventListener(t, lift, { capture: true, passive: true })), 300);
+      addEventListener('resize', place);
+    }
     new MutationObserver(back).observe(chat, { attributes: true, attributeFilter: ['class'] });
     root.querySelectorAll('.ins-modal').forEach(m => new MutationObserver(() => { if (m.hidden) back(); }).observe(m, { attributes: true, attributeFilter: ['hidden'] }));
 
@@ -97,8 +129,13 @@
       if (!rateFlow || !e.target.closest('.ppa-fb [data-rate]')) return;
       rateFlow = false;
       setTimeout(async () => {
-        if (!wide()) return;   // narrow screens keep the "See what the owner sees" link in the chat
-        hint = true; html.classList.add('try-duo'); openReview();
+        hint = true;
+        if (wide()) { html.classList.add('try-duo'); openReview(); return; }
+        // narrow screens: no room side by side, so close the chat and open the review full screen, "from you" in it.
+        // Hold the step's "back to the steps" while the chat closes, so it waits for the review instead.
+        const p = pending; pending = null;
+        await closeChat(); openReview();
+        pending = p;
       }, 900);
     }, true);
     list.addEventListener('click', e => {
