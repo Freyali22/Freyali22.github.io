@@ -24,7 +24,6 @@
 <link rel="stylesheet" href="qa.css">
 </head>
 <body>
-<div class="placeholder-note">Synthetic data · fictional brand</div>
 <header class="nav">
   <div class="wrap">
     <a class="logo" href="../../">freya.li<span class="cursor" aria-hidden="true"></span></a>
@@ -40,32 +39,25 @@
 </header>
 
 <main>
-<section class="page-head">
+<section class="page-head compact">
   <div class="wrap">
     <div class="crumb"><a href="../../#agents">AI agent projects</a> / QA Agent</div>
     <div class="kicker">Quality &amp; evaluation</div>
     <h1>An agent that checks the other agents' work</h1>
-    <p class="lede">Every night it re-checks what the other agents said — every chatbot answer and every brief — against the source data, asks an LLM judge to score the rest, and turns each confirmed mistake into a release test.</p>
-    <dl class="meta">
-      <div><dt>Audience</dt><dd>Agent owners<small>the people who fix what it finds</small></dd></div>
-      <div><dt>Cadence</dt><dd>Every night<small>a report every Monday</small></dd></div>
-      <div><dt>Checks</dt><dd>Every claim<small>re-computed from the source</small></dd></div>
-      <div><dt>Loop</dt><dd>Release tests<small>each confirmed issue becomes one</small></dd></div>
-    </dl>
+    <p class="lede">Every night it re-checks what the other agents said against the source data, and turns each confirmed mistake into a release test.</p>
+    <p class="proof"><span><b>Every claim</b> re-computed from the source</span><span><b>Every night</b>, a report every Monday</span></p>
   </div>
 </section>
 
 <section class="try">
   <div class="wrap">
-    <div class="try-head">
-      <h2>Try it <span class="try-dur">· 30 seconds</span></h2>
-      <ol class="try-steps" aria-label="Three things to try">
-        <li><button type="button" data-step="1"><i>1</i><span><b>Read the weekly QA report</b><small>What broke this week, why, and what to fix first — from seven nightly runs.</small></span><em aria-hidden="true">→</em></button></li>
-        <li><button type="button" data-step="2"><i>2</i><span><b>Ask why the agent's own check missed it</b><small>Opens the chat: the answer matched what the agent read, so only the nightly re-check caught it.</small></span><em aria-hidden="true">→</em></button></li>
-        <li><button type="button" data-step="3"><i>3</i><span><b>See what the owner sees</b><small>The weekly feedback review the owner signs off. Rate an answer 👍 / 👎 and it's added here.</small></span><em aria-hidden="true">→</em></button></li>
-      </ol>
-      <p class="try-note">Or explore on your own: pick an agent and an output type, open a flag to see how it was checked, and decide the one still waiting for review. Every number is computed in your browser from synthetic data — and every example matches the other three agents' pages.</p>
-    </div>
+    <div class="try-root">
+    <ol class="try-steps" aria-label="Three things to try">
+      <li><button type="button" data-step="inv"><i>1</i><span><b>This answer passed its own check. It was still wrong.</b><small>The CEO asked how last week went. Watch the nightly re-check catch it, then make the call as the reviewer.</small></span><em aria-hidden="true">→</em></button></li>
+      <li><button type="button" data-step="1"><i>2</i><span><b>Read the weekly QA report</b><small>What broke this week, why, and what to fix first, from seven nightly runs.</small></span><em aria-hidden="true">→</em></button></li>
+      <li><button type="button" data-step="2"><i>3</i><span><b>Ask the agent, then rate the answer</b><small>“What was the biggest issue this week?” Your 👍 / 👎 goes straight into the feedback review the owner signs off each week.</small></span><em aria-hidden="true">→</em></button></li>
+    </ol>
+
     <div class="ppa qa" id="qa" data-base=".">
       <div class="ppa-head">
         <div class="ppa-top">
@@ -101,8 +93,8 @@
         <h4>Data notes</h4>
         <ul>
           <li>Synthetic logs from a seeded Python script, for a fictional brand: 13 weeks of nightly QA runs over the three other demo agents — every chatbot answer and every written brief, by day.</li>
-          <li><b>Source values are real for this site.</b> Each flagged example is re-computed from the other agents' own demo data, as of the day it was asked — the share price from the CEO Morning Brief, sales and stock from the Product Performance Agent, email and journey figures from the eCom agent.</li>
-          <li><b>Claims</b> = numbers, direction words ("up", "recovering"), rankings and periods in an output. The <b>claim checker</b> re-computes each one from the source, independently of what the agent read. The <b>LLM judge</b> scores accuracy, relevance and grounding from 1 to 5, after it sees the checker's result.</li>
+          <li><b>Source values are real for this site.</b> Each flagged example is re-computed from the other agents' own demo data, as of the day it was asked — the share price from the CEO Morning Brief, sales and stock from the Product Performance Agent, email and journey figures from the eCom agent. The page shows the nightly re-check's recorded result for each claim, generated with the data; nothing is re-queried in your browser. Some examples are as of an earlier week than those pages let you pick; each one shows the date it was asked, and its source values are as of that date.</li>
+          <li><b>Claims</b> = numbers, direction words ("up", "recovering"), rankings and periods in an output. The <b>claim checker</b> re-computes each one from the source, independently of what the agent read. The <b>LLM judge</b> scores accuracy, relevance and grounding from 1 to 5, after it sees the checker's result. A claim <b>matches</b> when its figure equals the source for the period and scope it names; the match rate is not an accuracy score for the agents, because whether the answer read the right scope, meant the right thing and drew a fair conclusion are separate checks.</li>
           <li>An output is <b>flagged</b> when any claim doesn't match, or any judge score is 2 or lower. Flags are grouped by cause; a reviewer decides each one.</li>
           <li><b>Inline check</b> is the check each agent runs before it shows an answer: it compares the answer with what the agent read. The nightly run catches what it can't — inputs that were late, stale or the wrong slice.</li>
           <li>Weeks run Monday to Sunday; this week is Nov 9–15. The other agents use their own fiscal calendars, so this page labels weeks by date.</li>
@@ -112,7 +104,7 @@
       </div>
 
       <aside class="ppa-chat" aria-label="Ask the agent" aria-hidden="true">
-        <div class="ppa-chat-h"><div><span class="spk">✦</span> <b>Ask the agent</b><small>Answers from the QA results only · every number re-checked</small><button type="button" class="ppa-fbr-link" data-fbr-open><span class="ic" aria-hidden="true">↺</span>Feedback review<span class="n">Owner view</span></button></div><div class="ppa-chat-btns"><button type="button" class="ppa-clear" data-reset title="Clear the conversation" aria-label="Clear the conversation">⟳ Clear</button><button type="button" class="ppa-x" aria-label="Close">×</button></div></div>
+        <div class="ppa-chat-h"><div><span class="spk">✦</span> <b>Ask the agent</b><small>Answers from the QA results only · every number cited</small><button type="button" class="ppa-fbr-link" data-fbr-open><span class="ic" aria-hidden="true">↺</span>Feedback review<span class="n">Owner view</span></button></div><div class="ppa-chat-btns"><button type="button" class="ppa-clear" data-reset title="Clear the conversation" aria-label="Clear the conversation">⟳ Clear</button><button type="button" class="ppa-x" aria-label="Close">×</button></div></div>
         <div class="ppa-log" aria-live="polite"></div>
         <form class="ppa-input" autocomplete="off"><input type="text" name="q" maxlength="200" placeholder="Ask about flags, fixes or an agent…" aria-label="Ask the agent a question"><button type="submit" aria-label="Send">↑</button></form>
         <div class="cfoot">Grounded in the QA results only · questions, answers and your feedback are recorded so the agent can be improved</div>
@@ -129,25 +121,25 @@
         </div>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="story-sec">
-  <div class="wrap grid">
-    <h2>The problem</h2>
-    <div class="prose">
-      <p>Once the agents had chatbots, the riskiest thing on the page was no longer a chart — it was a sentence. A wrong number in a confident answer looks exactly like a right one, and a user only needs to catch one to stop trusting all of them.</p>
-      <p>Each agent already checks its answers before showing them, but that check can only compare the answer with what the agent read. <b>When the data it read is late, stale or the wrong slice, the answer passes — and is still wrong.</b> Reading every conversation by hand doesn't scale.</p>
     </div>
   </div>
 </section>
 
+
+
 <section class="story-sec">
   <div class="wrap grid">
-    <h2>My role</h2>
+    <h2>What I built</h2>
     <div class="prose">
-      <p>I designed and built it: which claims it pulls out of an answer, how each one is re-computed independently of the agent, the judge's rubric, and the review loop that turns a confirmed mistake into a release test.</p>
-      <p>It runs on <b>the same framework as the agents it checks</b>, and reads the same warehouse tables they do.</p>
+      <p>Once the agents had chatbots, the riskiest thing on the page was no longer a chart — it was a sentence. A wrong number in a confident answer looks exactly like a right one. Each agent already checks its answers before showing them, but that check can only compare the answer with what the agent read: <b>when the data it read is late, stale or the wrong slice, the answer passes — and is still wrong.</b> Reading every conversation by hand doesn't scale.</p>
+      <p>I designed and built it: which claims it pulls out of an answer, how each one is re-computed independently of the agent, the judge's rubric, and the review loop that turns a confirmed mistake into a release test. It runs on <b>the same framework as the agents it checks</b>, and reads the same warehouse tables they do.</p>
+      <p>Now every output is checked every night, a flagged answer reaches its owner the morning after instead of when a user finds it, and agent owners only spend time on the few flags that need a decision. Every confirmed mistake becomes a release test, so the same check never has to be done by hand twice.</p>
+      <dl class="meta">
+        <div><dt>Audience</dt><dd>Agent owners<small>the people who fix what it finds</small></dd></div>
+        <div><dt>Cadence</dt><dd>Every night<small>a report every Monday</small></dd></div>
+        <div><dt>Checks</dt><dd>Every claim<small>re-computed from the source</small></dd></div>
+        <div><dt>Loop</dt><dd>Release tests<small>each confirmed issue becomes one</small></dd></div>
+      </dl>
     </div>
   </div>
 </section>
@@ -163,7 +155,7 @@
         <li><div><b>Re-compute from the source</b><span>Each claim is re-computed with its own query, not from what the agent read. Match or mismatch — no opinions. This is what catches late or wrong inputs.</span></div></li>
         <li><div><b>Judge the rest</b><span>An LLM judge scores accuracy, relevance and grounding against a fixed rubric, sees the checker's result, and explains its score.</span></div></li>
         <li><div><b>Review</b><span>The agent owner marks each flag a real issue or a false alarm. False alarms tune the judge; real issues get a fix and an owner.</span></div></li>
-        <li><div><b>Release test</b><span>Every confirmed issue becomes a test that runs before every release, so the same mistake can't ship twice. A Weekly QA report sums it up every Monday.</span></div></li>
+        <li><div><b>Release test</b><span>Every confirmed issue becomes a test that runs before every release, so a fixed mistake is re-tested before anything ships again. A Weekly QA report sums it up every Monday.</span></div></li>
       </ol>
       <div class="arch" aria-label="Architecture">
         <div class="box"><b>Agent outputs</b><span>chat answers · briefs · what each read</span></div><span class="arr">→</span>
@@ -176,15 +168,6 @@
   </div>
 </section>
 
-<section class="story-sec">
-  <div class="wrap grid">
-    <h2>Outcome</h2>
-    <div class="prose">
-      <p><b>Quality review runs itself.</b> Checking the agents' answers used to mean reading conversations by hand and re-running numbers one at a time. Now every output is checked every night — no one has to remember to look — and agent owners only spend time on the few flags that need a decision.</p>
-      <p>A wrong answer is caught the morning after, not when a user finds it. The Monday report replaces the manual write-up, and every confirmed mistake becomes a release test, so the same check never has to be done by hand twice.</p>
-    </div>
-  </div>
-</section>
 
 <div class="wrap">
   <nav class="pager" aria-label="More agents">
@@ -199,9 +182,10 @@
 <script src="qa.js"></script>
 <script src="../product-performance/try.js"></script>
 <script>
-TrySteps({ root: '#qa', done: { 1: '[data-ins]', 2: '.ppa-sugtop [data-i]' },
+TrySteps({ root: '#qa', rateReview: true, done: { inv: '[data-go]', 1: '[data-ins]', 2: '.ppa-sugtop [data-i]' },
+  inv: ctx => { window.__qa.reset('c-lastweek'); return window.__qa.investigate('c-lastweek'); },   // the demo case always starts undecided
   one: ctx => ctx.q('[data-ins]').click(),
-  ask: async ctx => { await ctx.openChat(); const b = ctx.q('.ppa-sugtop [data-i="3"]'); if (b && !b.disabled) b.click(); } });
+  ask: async ctx => { await ctx.openChat(); const b = ctx.q('.ppa-sugtop [data-i="0"]'); if (b && !b.disabled) b.click(); } });
 </script>
 </body>
 </html>

@@ -23,7 +23,6 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<div class="placeholder-note">Synthetic data · fictional brand</div>
 <header class="nav">
   <div class="wrap">
     <a class="logo" href="../../">freya.li<span class="cursor" aria-hidden="true"></span></a>
@@ -39,33 +38,24 @@
 </header>
 
 <main>
-<section class="page-head">
+<section class="page-head compact">
   <div class="wrap">
     <div class="crumb"><a href="../../#agents">AI agent projects</a> / Product Performance Agent</div>
     <div class="kicker">Flagship · framework</div>
     <h1>Product Performance Agent</h1>
-    <p class="lede"><b>Weekly sales, product and inventory insights for merchandising teams. Built once, running in five regions.</b></p>
-    <p class="lede">The team's first AI agent. Buyers ask it how the business did and what to do next; it answers from the same numbers they'd otherwise spend half a day pulling together. Then I turned it into the framework every other agent on the team runs on.</p>
-    <dl class="meta">
-      <div><dt>Users</dt><dd>1,000+<small>buyers &amp; planners worldwide</small></dd></div>
-      <div><dt>Meeting prep</dt><dd>4–5 h → 20 min<small>every week, per buyer</small></dd></div>
-      <div><dt>Regions</dt><dd>5<small>a new one in about 30 minutes</small></dd></div>
-      <div><dt>Framework</dt><dd>50+ agents<small>built on the same core</small></dd></div>
-    </dl>
+    <p class="lede">Weekly sales, product and inventory insights for merchandising teams.</p>
+    <p class="proof"><span><b>1,000+</b> users</span><span><b>4–5 h → 20 min</b> weekly meeting prep</span></p>
   </div>
 </section>
 
 <section class="try">
   <div class="wrap">
-    <div class="try-head">
-      <h2>Try it <span class="try-dur">· 30 seconds</span></h2>
-      <ol class="try-steps" aria-label="Three things to try">
-        <li><button type="button" data-step="1"><i>1</i><span><b>Read the weekly brief</b><small>Open Weekly Insights: what moved, why, and what to do next.</small></span><em aria-hidden="true">→</em></button></li>
-        <li><button type="button" data-step="2"><i>2</i><span><b>Ask the agent: “How did last week go?”</b><small>Opens the chat. Watch the tool calls run and every number get re-checked.</small></span><em aria-hidden="true">→</em></button></li>
-        <li><button type="button" data-step="3"><i>3</i><span><b>See what the owner sees</b><small>The weekly feedback review the business team signs off. Rate an answer 👍 / 👎 and it's added here.</small></span><em aria-hidden="true">→</em></button></li>
-      </ol>
-      <p class="try-note">Or explore on your own: switch region, period and channel, and move between the four tabs. Each region is one config file — currency, calendar, channels and thresholds change; the code doesn't.</p>
-    </div>
+    <div class="try-root">
+    <ol class="try-steps" aria-label="Three things to try">
+      <li><button type="button" data-step="inv"><i>1</i><span><b>Harbor Parka is about to run out. Reorder?</b><small>2.7 weeks of stock left, under the 4-week floor. Watch the agent check the demand, size the stock gap, and wait for your approval.</small></span><em aria-hidden="true">→</em></button></li>
+      <li><button type="button" data-step="1"><i>2</i><span><b>Read the weekly brief</b><small>Open Weekly Insights: what moved, why, and what to do next.</small></span><em aria-hidden="true">→</em></button></li>
+      <li><button type="button" data-step="2"><i>3</i><span><b>Ask the agent, then rate the answer</b><small>“How did last week go?” Your 👍 / 👎 goes straight into the feedback review the owner signs off each week.</small></span><em aria-hidden="true">→</em></button></li>
+    </ol>
 
     <div class="ppa" id="ppa" data-base=".">
       <div class="ppa-head">
@@ -108,12 +98,12 @@
           <li>Synthetic data from a seeded Python script, for a fictional brand. Each region has a story planted in it for the agent to find.</li>
           <li><b>vs LY</b> compares the same fiscal weeks last year (364 days earlier, same weekdays).</li>
           <li><b>Weeks of supply</b> = units on hand at the end of the latest week ÷ average weekly units sold over the last 4 weeks. Inventory is held at region level, so it ignores the channel filter.</li>
-          <li><b>New customer</b> = first purchase with the brand; <b>returning</b> = everyone else. Generations: Gen Z (born 1997–2012), Millennial, Gen X, Boomer. The Gen Z index compares a family's Gen Z share of new customers with the brand's (100 = same).</li>
+          <li><b>New customer</b> = first purchase with the brand; <b>returning</b> = everyone else. Each new customer is one first order, so orders from returning customers = orders − new customers; that counts orders, not people. Generations: Gen Z (born 1997–2012), Millennial, Gen X, Boomer. The Gen Z index compares a family's Gen Z share of new customers with the brand's (100 = same).</li>
           <li>Products new this year have no last-year sales; they show as <b>new</b> and are left out of “families up vs LY”.</li>
           <li>Thresholds, channels, currency and the fiscal calendar all come from the region's config file.</li>
           <li>The agent works through four tools (sales, trend, inventory, customers) that run live on this data. The chatbot answers the suggested questions, and any typed question that matches one of them; other typed questions get a demo note, because this public page isn't connected to a language model. The tool calls behind each answer run in your browser, and every number is re-computed before it is marked ✓.</li>
           <li><b>Weekly Insights</b> is the agent's own brief for the latest week, read against the prior 4 weeks, all channels: headline, key stats with momentum tags, why it moved across Product · Place · People · Price, actions, a bottom line and drill questions. Contribution (pts) = a slice's change vs LY ÷ last year's total sales.</li>
-          <li><b>Investigate</b> runs a bounded loop: each step picks the next tool from the last result, at most 6 steps, and a person approves the outcome. Each step is chosen by a fixed policy from the same tool menu, so every run is repeatable.</li>
+          <li><b>Investigate</b> runs a bounded loop: each step picks the next tool from the last result, at most 6 steps, and a person approves the outcome. A reorder gap is an indicative stock gap to a weeks-of-supply target (8 weeks, or 6 when the latest week is an outlier), not an order quantity: open POs, inbound stock, lead time and size mix aren't in this data. Each step is chosen by a fixed policy from the same tool menu, so every run is repeatable.</li>
           <li>Summaries here are written from rules over the same tool results; in production an LLM writes them and a checker verifies every number.</li>
         </ul>
       </div>
@@ -143,26 +133,25 @@
       </div>
     </div>
 
+    </div>
 </div>
   </div>
 </section>
 
-<section class="story-sec">
-  <div class="wrap grid">
-    <h2>The problem</h2>
-    <div class="prose">
-      <p>Every week, buyers walked into a meeting where they had to explain how their business did and what they'd do about it. Getting ready meant pulling sales, inventory and plan numbers from several reports, by region and channel, and stitching them together by hand — <b>four to five hours, every week</b>.</p>
-      <p>The numbers existed. What was missing was one place that answered the questions buyers actually ask, in the order they ask them.</p>
-    </div>
-  </div>
-</section>
+
 
 <section class="story-sec">
   <div class="wrap grid">
-    <h2>My role</h2>
+    <h2>What I built</h2>
     <div class="prose">
-      <p>I designed and built the first version end to end — the data model, the views, the chatbot — and worked directly with buyers to decide what belonged on the page. When other regions asked for it, I <b>rebuilt it as a framework</b> instead of copying it five times.</p>
-      <p>I still own the five buying agents and lead the design of new features: insight narratives, the chatbot, and an agentic loop that cross-checks demand against inventory.</p>
+      <p>Buyers spent <b>four to five hours every week</b> pulling sales, inventory and plan numbers from several reports, by region and channel, to get ready for one meeting. I designed and built the first version end to end — the data model, the views, the chatbot — and worked with buyers on what belonged on the page. Buyers now catch out-of-stocks early and reorder in time.</p>
+      <p>When other regions asked for it, I <b>rebuilt it as a framework</b> instead of copying it five times: one shared core, one small config file per region. A new region takes about 30 minutes, and <b>every agent the team has built since, 50+ and counting, runs on it.</b> I still own the five buying agents and lead the design of new features: insight narratives, the chatbot, and an agentic loop that cross-checks demand against inventory.</p>
+      <dl class="meta">
+        <div><dt>Users</dt><dd>1,000+<small>buyers &amp; planners worldwide</small></dd></div>
+        <div><dt>Meeting prep</dt><dd>4–5 h → 20 min<small>every week, per buyer</small></dd></div>
+        <div><dt>Regions</dt><dd>5<small>a new one in about 30 minutes</small></dd></div>
+        <div><dt>Framework</dt><dd>50+ agents<small>built on the same core</small></dd></div>
+      </dl>
     </div>
   </div>
 </section>
@@ -175,8 +164,8 @@
         <li><div><b>Refresh</b><span>A scheduled job pulls sales, inventory and plan from the data warehouse.</span></div></li>
         <li><div><b>Shared core + region config</b><span>One code base computes every view — TY vs LY, trends, sell-through, weeks of supply; a small file per region sets currency, fiscal calendar, channels and thresholds.</span></div></li>
         <li><div><b>Alerts</b><span>Rules on those thresholds flag what needs action this week: items about to run out, stock to reorder, markdown risk.</span></div></li>
-        <li><div><b>Insights + chatbot</b><span>An LLM writes the weekly insights and answers questions from the same numbers the page shows, so the answer always matches the chart.</span></div></li>
-        <li><div><b>Checks</b><span>A checker traces every number in an answer back to the data and retries when one doesn't match; a separate QA agent reviews the chatbot's answers every week.</span></div></li>
+        <li><div><b>Insights + chatbot</b><span>An LLM writes the weekly insights and answers questions from the same governed metrics the page shows; the checks block an answer whose numbers don't match them.</span></div></li>
+        <li><div><b>Checks</b><span>A checker traces every number in an answer back to the data and retries when one doesn't match; a separate QA agent re-checks the chatbot's answers in nightly checks and sends a weekly summary.</span></div></li>
         <li><div><b>Agentic loop</b><span>When an alert fires, an agent investigates it step by step — demand, then inventory — choosing each next step from a fixed tool menu, and proposes an action for a person to approve.</span></div></li>
         <li><div><b>Feedback loop</b><span>Every answer can be rated, with a reason. Each week the agent groups the feedback and drafts fixes, the business team decides, and every fix becomes a regression test.</span></div></li>
       </ol>
@@ -191,15 +180,6 @@
   </div>
 </section>
 
-<section class="story-sec">
-  <div class="wrap grid">
-    <h2>Outcome</h2>
-    <div class="prose">
-      <p><b>Weekly prep went from 4–5 hours to about 20 minutes.</b> Buyers and product teams call it a life saver: they catch out-of-stocks early and reorder in time, which means better in-stock and faster turns. The agent has 1,000+ users across five regions and feeds store and inventory allocation decisions.</p>
-      <p>Because the framework separates the core from the config, adding a region takes about 30 minutes — and <b>every agent the team has built since, 50+ and counting, runs on it.</b></p>
-    </div>
-  </div>
-</section>
 
 <div class="wrap">
   <nav class="pager" aria-label="More agents">
@@ -214,7 +194,8 @@
 <script src="app.js"></script>
 <script src="try.js"></script>
 <script>
-TrySteps({ root: '#ppa', done: { 1: '[data-ins]', 2: '.ppa-sugtop [data-i]' },
+TrySteps({ root: '#ppa', rateReview: true, done: { inv: '[data-inv]', 1: '[data-ins]', 2: '.ppa-sugtop [data-i]' },
+  inv: ctx => ctx.q('[data-inv]').click(),
   one: ctx => ctx.q('[data-ins]').click(),
   ask: async ctx => { await ctx.openChat(); const b = ctx.q('.ppa-sugtop [data-i="0"]:not([disabled])'); if (b) b.click(); } });
 </script>

@@ -92,3 +92,9 @@
 .qa table.causes td small.iss{margin-top:3px}
 .qa table.causes td small .by{margin-right:4px}
 .qa .qa-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+/* agent run: the case being re-checked is marked on the dashboard */
+#qa .ag-hl > td{background:#fff8ef}
+#qa tr.ag-hl{outline:2px solid var(--accent);outline-offset:-2px}
+#qa .ppa-step .why{border:0;padding:0;margin:0;background:none;color:var(--ink);font-style:normal}
+#qa .ppa-rec .sub{font-size:12.5px;color:var(--ink-2)}
+#qa .ppa-rec .done.draft{color:#8b6914}

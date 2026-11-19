@@ -67,7 +67,13 @@
 
     const run = {
       1: async () => { await closeChat(); await cfg.one(ctx); },
-      2: () => cfg.ask(ctx),
+      2: async () => {   // ask, then point at 👍/👎; the rating opens the owner's review
+        if (!cfg.rateReview) return cfg.ask(ctx);
+        rateFlow = true; await cfg.ask(ctx);
+        for (let t = 0; t < 80 && !unrated(); t++) await wait(150);
+        const fb = unrated(); if (fb) { await wait(300); followed = true; pulseFb(fb); }
+      },
+      inv: () => cfg.inv(ctx),
       3: async () => {   // the review opens at once; an answer to rate is asked for in the background if needed
         hint = true; followed = false;
         const need = !unrated();
@@ -79,12 +85,36 @@
       }
     };
 
+    let rateFlow = false;
+    // Approve / Dismiss ends the agent run: close it and point at the next step
+    root.addEventListener('click', e => {
+      if (!cfg.inv || !e.target.closest('.ppa-rec [data-dec]')) return;
+      mark('inv');
+      pending = 'inv'; closeChat();
+    }, true);   // capture: the run replaces the buttons on click
+    // a rating from step 3 opens the feedback review next to the chat, with "from you" in it
+    root.addEventListener('click', e => {
+      if (!rateFlow || !e.target.closest('.ppa-fb [data-rate]')) return;
+      rateFlow = false;
+      setTimeout(async () => {
+        if (!wide()) return;   // narrow screens keep the "See what the owner sees" link in the chat
+        hint = true; html.classList.add('try-duo'); openReview();
+      }, 900);
+    }, true);
     list.addEventListener('click', e => {
       const b = e.target.closest('[data-step]');
       if (!b) return;
       clearNext(); pending = null;   // a new step cancels the previous step's "back to the steps"
       root.scrollIntoView({ block: 'start', behavior: smooth });
-      Promise.resolve(run[b.dataset.step]()).then(() => setTimeout(() => { pending = b.dataset.step; }, 400));
+      const s = b.dataset.step, fn = run[s] || (cfg.steps && cfg.steps[s] && (() => cfg.steps[s](ctx)));
+      if (!fn) return;
+      Promise.resolve(fn()).then(() => setTimeout(() => {
+        pending = s;
+        // a step that stays on the page (a tab, a draft) opens nothing to close: tick it and point at the next step now
+        if (cfg.rateReview && !isOpen() && ![...root.querySelectorAll('.ins-modal')].some(m => !m.hidden)) {
+          pending = null; mark(s); const nx = list.querySelector('[data-step]:not(.done)'); if (nx) setNext(nx);
+        }
+      }, 400));
     });
     // tick steps 1–2 off whichever way the visitor gets there
     document.addEventListener('click', e => {

@@ -7,9 +7,13 @@ Daily grain: day (Sun Oct 4 .. Mon Nov 16, 2026) x brand x region, this year and
 (364 days earlier, same weekday). Weekly grain (2 fiscal weeks, Nov 1-14): category, new
 customers, Gen Z and hero products per brand x region.
 
-Two planted data-quality events, for the page's freshness logic to find on its own:
-  * Thu 11/12 Europe comes in weak (62% of a normal Thursday) but fully loaded  -> a weak day
-  * Mon 11/16 Japan has only loaded 38% of a normal Monday                       -> still loading
+Load log: for every day x brand x region, store + eCom feeds expected vs loaded and the time
+the last one landed. The page decides "complete / still loading" from this log only; low sales
+are a separate anomaly signal. Two planted events:
+  * Thu 11/12 Europe sales planted at 0.62x, every feed loaded               -> unusually low, complete
+  * Mon 11/16 Japan has only part of its feeds in (sales ~38% of normal)      -> still loading
+Weekly category data is an exact split of the same brand x region daily net sales for 11/1-11/14
+(TY and LY), so category growth and contribution reconcile with the Sales tab.
 Month-to-date totals are scaled to fixed targets so the story reads the same every run.
 Schedule, news and share-price content is synthetic too; the page fills every number in it
 from the same engine that draws the Sales tab.
@@ -114,17 +118,38 @@ CATS = [  # name, LY share, growth
 HEROES = [  # name, LY share of net sales, growth
     ("Market Tote", 0.0505, 0.22), ("Field Jacket", 0.031, 0.31), ("Cloud Crew", 0.044, -0.03),
 ]
+CO_MIX_G = sum(sh * g for _, sh, g in CATS)  # growth the category mix implies on its own (~5%)
+
+
+def split(total, weights):
+    """Integer split of total in proportion to weights; parts add up to total exactly."""
+    raw = [total * w / sum(weights) for w in weights]
+    out = [math.floor(x) for x in raw]
+    for i in sorted(range(len(raw)), key=lambda j: raw[j] - out[j], reverse=True)[: total - sum(out)]:
+        out[i] += 1
+    return out
+
+
 wk_idx = [i for i, d in enumerate(DAYS) if M_START <= d <= dt.date(2026, 11, 14)]
 weekly = []
 for r in rows:
+    ty_tot = sum(r["sales"][i][0] for i in wk_idx)
     ly_tot = sum(r["sales"][i][1] for i in wk_idx)
     wr = {"brand": r["brand"], "region": r["region"], "cat": {}, "hero": {}}
+    # category mix: LY shares with noise, TY shares tilted by each category's growth; both then split
+    # the row's own TY and LY net sales, so the categories add back to the Sales tab exactly
+    w_ly, w_ty = [], []
     for name, sh, g in CATS:
-        lyv = ly_tot * sh * (1 + rnd.uniform(-0.03, 0.03))
-        wr["cat"][name] = [round(lyv * (1 + g + rnd.uniform(-0.015, 0.015))), round(lyv)]
+        lyw = sh * (1 + rnd.uniform(-0.03, 0.03))
+        w_ly.append(lyw)
+        w_ty.append(lyw * (1 + g + rnd.uniform(-0.015, 0.015)))
+    for (name, _, _), t, l in zip(CATS, split(ty_tot, w_ty), split(ly_tot, w_ly)):
+        wr["cat"][name] = [t, l]
+    # hero products move with their row: a region growing slower than the mix pulls its heroes down too
+    row_tilt = (ty_tot / ly_tot) / (1 + CO_MIX_G)
     for name, sh, g in HEROES:
         lyv = ly_tot * sh * (1 + rnd.uniform(-0.03, 0.03))
-        wr["hero"][name] = [round(lyv * (1 + g + rnd.uniform(-0.015, 0.015))), round(lyv)]
+        wr["hero"][name] = [round(lyv * (1 + g + rnd.uniform(-0.015, 0.015)) * row_tilt), round(lyv)]
     nd_ly = ly_tot * 0.29
     nd_ty = nd_ly * (1.09 + rnd.uniform(-0.01, 0.01))
     wr["new_demand"] = [round(nd_ty), round(nd_ly)]
@@ -153,6 +178,32 @@ stock = {
     "ytd": 18.4, "target": [46, 58, 53],
     "peers": [["Halden & Co", 0.9, 12.6], ["Northgate Group", 0.6, 7.9], ["Maison Verre", -0.3, 6.8]],
 }
+
+# ---------------------------------------------------------------- load log (store + eCom feeds per day x brand x region)
+FEEDS = {("Studio", "North America"): 58, ("Studio", "Europe"): 27, ("Studio", "Asia Pacific"): 22, ("Studio", "Japan"): 19,
+         ("Outlet", "North America"): 41, ("Outlet", "Europe"): 11, ("Outlet", "Japan"): 13}
+PARTIAL = {("Studio", "Japan"): 7, ("Outlet", "Japan"): 5}   # Mon 11/16: feeds in by the 6:05 am brief
+lrnd = random.Random(29)  # own stream, so the sales and share-price draws above are unchanged
+for r in rows:
+    exp, log = FEEDS[(r["brand"], r["region"])], []
+    for d in DAYS:
+        nxt = d + dt.timedelta(1)
+        if d == LAST and (r["brand"], r["region"]) in PARTIAL:
+            log.append([PARTIAL[(r["brand"], r["region"])], exp, f"{nxt.isoformat()}T05:{lrnd.randint(40, 58):02d}"])
+        else:
+            log.append([exp, exp, f"{nxt.isoformat()}T0{lrnd.randint(3, 4)}:{lrnd.randint(0, 59):02d}"])
+    r["load"] = log
+
+# ---------------------------------------------------------------- asserts
+for r, wr in zip(rows, weekly):
+    ty_tot = sum(r["sales"][i][0] for i in wk_idx)
+    ly_tot = sum(r["sales"][i][1] for i in wk_idx)
+    assert sum(v[0] for v in wr["cat"].values()) == ty_tot, (r["brand"], r["region"], "category TY != daily sales")
+    assert sum(v[1] for v in wr["cat"].values()) == ly_tot, (r["brand"], r["region"], "category LY != daily sales")
+incomplete = sorted({(DAYS[i].isoformat(), r["region"]) for r in rows for i, (got, exp, _) in enumerate(r["load"]) if got < exp})
+assert incomplete == [("2026-11-16", "Japan")], incomplete
+eu_1112 = [r["load"][DAYS.index(dt.date(2026, 11, 12))] for r in rows if r["region"] == "Europe"]
+assert all(got == exp for got, exp, _ in eu_1112), "11/12 Europe is weak sales, not a partial load"
 
 out = {
     "brand": "Sunday Studio",

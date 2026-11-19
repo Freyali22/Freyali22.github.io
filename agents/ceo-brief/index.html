@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>CEO Morning Brief — Freya Li</title>
-<meta name="description" content="A live demo: the morning brief for a CEO and senior executives — schedule, sales, news and share price, plus a chat that answers only from the brief. Synthetic data.">
+<meta name="description" content="A live demo: the morning brief for a CEO and senior executives — priorities, sales, news and share price, plus a chat that answers only from the brief. Synthetic data.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Freya Li">
 <meta property="og:url" content="https://freyali22.github.io/agents/ceo-brief/">
 <meta property="og:title" content="CEO Morning Brief — Freya Li">
-<meta property="og:description" content="A live demo: the morning brief for a CEO and senior executives — schedule, sales, news and share price, plus a chat that answers only from the brief. Synthetic data.">
+<meta property="og:description" content="A live demo: the morning brief for a CEO and senior executives — priorities, sales, news and share price, plus a chat that answers only from the brief. Synthetic data.">
 <meta property="og:image" content="https://freyali22.github.io/assets/img/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -24,7 +24,6 @@
 <link rel="stylesheet" href="ceo.css">
 </head>
 <body>
-<div class="placeholder-note">Synthetic data · fictional brand</div>
 <header class="nav">
   <div class="wrap">
     <a class="logo" href="../../">freya.li<span class="cursor" aria-hidden="true"></span></a>
@@ -40,32 +39,25 @@
 </header>
 
 <main>
-<section class="page-head">
+<section class="page-head compact">
   <div class="wrap">
     <div class="crumb"><a href="../../#agents">AI agent projects</a> / CEO Morning Brief</div>
     <div class="kicker">Executive briefing</div>
     <h1>A morning brief the CEO can ask questions of</h1>
-    <p class="lede">Every morning: what needs the CEO this week, how the business did, and what the market did — on one page, with a chatbot for the follow-up questions.</p>
-    <dl class="meta">
-      <div><dt>Audience</dt><dd>CEO + senior execs<small>the people it was built for</small></dd></div>
-      <div><dt>Cadence</dt><dd>Every morning<small>refreshed overnight</small></dd></div>
-      <div><dt>Sections</dt><dd>3 tabs<small>schedule, sales, news</small></dd></div>
-      <div><dt>Chatbot</dt><dd>Cited answers<small>every figure checked before it shows</small></dd></div>
-    </dl>
+    <p class="lede">What needs the CEO this week, how the business did, and what the market did — on one page, every morning.</p>
+    <p class="proof"><span><b>CEO + senior execs</b> read it</span><span><b>Every morning</b>, refreshed overnight</span></p>
   </div>
 </section>
 
 <section class="try">
   <div class="wrap">
-    <div class="try-head">
-      <h2>Try it <span class="try-dur">· 30 seconds</span></h2>
-      <ol class="try-steps" aria-label="Three things to try">
-        <li><button type="button" data-step="1"><i>1</i><span><b>Check today's schedule</b><small>Open the draft reply for the first item. Nothing is sent.</small></span><em aria-hidden="true">→</em></button></li>
-        <li><button type="button" data-step="2"><i>2</i><span><b>Ask the brief a question</b><small>Opens the chat. Answers come only from the brief, every number checked.</small></span><em aria-hidden="true">→</em></button></li>
-        <li><button type="button" data-step="3"><i>3</i><span><b>See what the owner sees</b><small>The weekly feedback review the business team signs off. Rate an answer 👍 / 👎 and it's added here.</small></span><em aria-hidden="true">→</em></button></li>
-      </ol>
-      <p class="try-note">Or explore on your own: step through Sales — time frame, brand and region filters, and the day stepper. Every number is computed in your browser from synthetic data for a fictional brand.</p>
-    </div>
+    <div class="try-root">
+    <ol class="try-steps" aria-label="Three things to try">
+      <li><button type="button" data-step="1"><i>1</i><span><b>See what needs the CEO today</b><small>The agent read 64 messages and picked three. Open the reply it drafted for the first one. Nothing is sent.</small></span><em aria-hidden="true">→</em></button></li>
+      <li><button type="button" data-step="sales"><i>2</i><span><b>Read how the business did</b><small>Month to date in two lines, what drives it, and a check that tells a weak day from missing data.</small></span><em aria-hidden="true">→</em></button></li>
+      <li><button type="button" data-step="2"><i>3</i><span><b>Ask the brief, then rate the answer</b><small>“Which product category grew the most?” Your 👍 / 👎 goes straight into the feedback review the owner signs off each week.</small></span><em aria-hidden="true">→</em></button></li>
+    </ol>
+
     <div class="ppa ceo" id="ceo" data-base=".">
       <div class="ppa-head">
         <div class="ppa-top">
@@ -76,7 +68,7 @@
           </div>
         </div>
         <div class="ppa-tabs" role="tablist" aria-label="Brief sections">
-          <button type="button" role="tab" aria-selected="true" data-tab="sched"><i>1</i>Today's schedule</button>
+          <button type="button" role="tab" aria-selected="true" data-tab="sched"><i>1</i>Today's priorities</button>
           <button type="button" role="tab" aria-selected="false" data-tab="sales"><i>2</i>Sales</button>
           <button type="button" role="tab" aria-selected="false" data-tab="news"><i>3</i>News</button>
         </div>
@@ -89,7 +81,7 @@
         <h4>Data notes</h4>
         <ul>
           <li>Synthetic data from a seeded Python script, for a fictional brand: daily net sales, comp, gross margin and new customers by brand and region, this year and last year (same weekdays, 364 days earlier), plus two weeks of product and customer data.</li>
-          <li><b>Freshness.</b> Each region-day is compared with its own normal ratio to last year. Below 70% of normal and more than $25K short, it is flagged. The brief stops at the last day with no flags; a flagged day before that is a weak day, not missing data, because later days loaded in full.</li>
+          <li><b>Freshness.</b> A load log records, for every day, brand and region, how many store and eCom feeds were expected, how many arrived and when the last one landed. The brief stops at the last day with every feed in. Separately, a region-day below 70% of its normal ratio to last year and more than $25K short is marked unusually low: a signal to look at, not a sign of missing data.</li>
           <li><b>The read</b> is written by rules, not a model: growth vs last year first, regions by their contribution to growth, moves under half a point called "in line". It always reads month to date and follows the brand and region filters.</li>
           <li><b>Contribution</b> = a row's change ÷ the scope's last-year sales, so rows add up to the total. Japan also shows growth in local currency.</li>
           <li><b>Chatbot.</b> Answers to the four suggested questions are built in the browser from the facts of the view you have selected, then checked before they are shown. In production a language model writes the answer and the same checks run on it; this public page has no model, because it can't safely hold an API key.</li>
@@ -117,25 +109,25 @@
         </div>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="story-sec">
-  <div class="wrap grid">
-    <h2>The problem</h2>
-    <div class="prose">
-      <p>Senior leaders start the day with the same questions: how did we do yesterday, is anything going wrong, what did the market do, and what do I need to decide today. The answers lived in different reports, inboxes and calendars.</p>
-      <p>They didn't need more dashboards. They needed <b>the few things that matter, already written</b>, and a way to ask "why?" without waiting for an analyst.</p>
     </div>
   </div>
 </section>
 
+
+
 <section class="story-sec">
   <div class="wrap grid">
-    <h2>My role</h2>
+    <h2>What I built</h2>
     <div class="prose">
-      <p>I owned the <b>analytics and insights layer</b> — which numbers make the brief, how they're compared, and how each line is worded so an executive can read it in seconds — and the <b>chatbot</b> that answers follow-up questions from the same data.</p>
-      <p>I also designed the guardrails around it: the freshness check that stops the brief at the last complete day, and the checks every chatbot answer passes before it is shown.</p>
+      <p>Senior leaders start the day with the same questions: how did we do yesterday, is anything going wrong, what did the market do, and what do I need to decide today. The answers lived in different reports, inboxes and calendars. They didn't need more dashboards. They needed <b>the few things that matter, already written</b>, and a way to ask "why?" without waiting for an analyst.</p>
+      <p>I owned the <b>analytics and insights layer</b> — which numbers make the brief, how they're compared, and how each line is worded so an executive can read it in seconds — and the <b>chatbot</b> that answers follow-up questions from the same data. I also designed the guardrails: the freshness check that stops the brief at the last complete day, and the checks every answer passes before it is shown.</p>
+      <p>The CEO and senior executives now start the day from one page instead of going back and forth between reports, data sources and news sites, and a follow-up question gets an answer in seconds.</p>
+      <dl class="meta">
+        <div><dt>Audience</dt><dd>CEO + senior execs<small>the people it was built for</small></dd></div>
+        <div><dt>Cadence</dt><dd>Every morning<small>refreshed overnight</small></dd></div>
+        <div><dt>Sections</dt><dd>3 tabs<small>priorities, sales, news</small></dd></div>
+        <div><dt>Chatbot</dt><dd>Cited answers<small>every figure checked before it shows</small></dd></div>
+      </dl>
     </div>
   </div>
 </section>
@@ -146,11 +138,11 @@
     <div>
       <ol class="steps">
         <li><div><b>Overnight refresh</b><span>Yesterday's sales land in the warehouse; share prices and news are pulled in; the schedule is built from the reader's email and calendar.</span></div></li>
-        <li><div><b>Freshness check</b><span>Each region-day is compared with its own normal. A region still loading stops the brief at the last complete day — and a weak but complete day is labelled as one, not hidden.</span></div></li>
+        <li><div><b>Freshness check</b><span>A load log tracks every region's store and eCom feeds. A region still loading stops the brief at the last complete day; a day that is complete but unusually low is labelled as one, not hidden.</span></div></li>
         <li><div><b>The read</b><span>Rules, not a model, write the sales summary: what changed, then what drives it — brand, region, category, new customers — with one number and one comparison per line.</span></div></li>
         <li><div><b>Numbers to bring</b><span>The same figures follow the reader into the day: each meeting on the schedule carries the numbers it needs, and each news story says why it matters for ours.</span></div></li>
         <li><div><b>Chatbot</b><span>Answers come only from the brief's figures for the view on screen, and every figure carries a citation to where it appears on the page. Anything else gets "not in this brief".</span></div></li>
-        <li><div><b>Checks</b><span>Before an answer is shown, a checker confirms every number is cited and matches the page, direction words match the signs, and "grew the most" matches the ranking. A failing answer is retried, then withheld. Email never reaches the chat.</span></div></li>
+        <li><div><b>Checks</b><span>Before an answer is shown, a checker confirms every number carries a citation to the page figure it came from, direction words match the signs, and "grew the most" matches the ranking. It checks the wording against the figures, not the business explanation behind them. A failing answer is retried, then withheld. Email never reaches the chat.</span></div></li>
         <li><div><b>Drafts, not sends</b><span>Every item on the schedule comes with a reply draft. The agent writes; the reader decides and presses send.</span></div></li>
         <li><div><b>Feedback loop</b><span>Every answer can be rated, with a reason. Each week the agent groups the feedback and drafts fixes, the owner decides, and every fix becomes a regression test.</span></div></li>
       </ol>
@@ -165,15 +157,6 @@
   </div>
 </section>
 
-<section class="story-sec">
-  <div class="wrap grid">
-    <h2>Outcome</h2>
-    <div class="prose">
-      <p><b>The CEO and senior executives get their morning back.</b> Instead of going back and forth between reports, data sources and news sites, everything they need to start the day is in one place — how the business did, what needs them this week, and what the market is saying.</p>
-      <p>Because every figure on the page and in the chat comes from the same numbers, a follow-up question gets an answer in seconds, without waiting for an analyst.</p>
-    </div>
-  </div>
-</section>
 
 <div class="wrap">
   <nav class="pager" aria-label="More agents">
@@ -188,7 +171,8 @@
 <script src="ceo.js"></script>
 <script src="../product-performance/try.js"></script>
 <script>
-TrySteps({ root: '#ceo', done: { 1: '[data-draft]', 2: '.ppa-sugtop [data-i]' },
+TrySteps({ root: '#ceo', rateReview: true, done: { 1: '[data-draft]', sales: '[data-tab="sales"]', 2: '.ppa-sugtop [data-i]' },
+  steps: { sales: async ctx => { const t = ctx.q('[data-tab="sales"]'); if (t.getAttribute('aria-selected') !== 'true') t.click(); } },
   one: async ctx => { const t = ctx.q('[data-tab="sched"]'); if (t.getAttribute('aria-selected') !== 'true') { t.click(); await ctx.wait(200); } const d = ctx.q('.sx .it [data-draft]'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); if (d) d.closest('.it').scrollIntoView({ block: 'center' }); },
   ask: async ctx => { await ctx.openChat(); const b = ctx.q('.ppa-sugtop [data-i="0"]:not([disabled])'); if (b) b.click(); } });
 </script>

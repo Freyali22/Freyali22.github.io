@@ -11,6 +11,9 @@ Weekly grain, fiscal weeks W25..W41 (Sun Jul 19 .. Sat Nov 14, 2026):
             the grid is built from these sends, so the two always agree.
   landing   week x device x landing page -> sessions, bounced, orders. The pages (plus "All
             other pages") partition the grid's sessions and bounces exactly.
+  mix       week x device x landing page -> sessions by channel (channel order as in "channels"). Rows add
+            up to the page's sessions and columns to the grid's channel sessions, so a page's top source
+            can never claim more visits than its channel had. "src" is its all-device summary per week.
   products  week x device x product -> page views, add-to-carts, orders, demand, and page
             views that opened on a sold-out option
   events    the few facts a real agent reads from other systems: a release note, a stock-out,
@@ -23,7 +26,8 @@ Planted in W41 (Nov 8-14), for the page's rules to find on their own:
     traffic up, its bounce up, the Juniper page's bounce spikes, Juniper demand falls far
     below the site-wide dip
   * "Early access: Cyber week" email: the best open rate, but click-to-open far below the other
-    sends, because it links to a page that opens Fri 11/20
+    sends (a CTA / audience question), and its link goes to a page that opens Fri 11/20, so most
+    of the few who click bounce
   * Harbor Crossbody: one of the most-viewed products every week, add-to-cart rate under half
     the bags average (not new, so it isn't an alert about this week)
 Everything else is trend plus noise, so most products move with the site, not in lockstep.
@@ -154,6 +158,7 @@ PAGES = [("home", "Home", .335, .30, .37, "direct", 0), ("gift", "Holiday gift g
          ("sale", "Sale", .06, .41, .48, "search", 0), ("new", "New arrivals", .05, .35, .42, "email", 0)]
 landing = {d: {p[0]: [] for p in PAGES + [("rest",)]} for d in DEV}
 src = {p[0]: [] for p in PAGES}
+pull = {p[0]: [] for p in PAGES}
 for t in range(NW):
     for d in DEV:
         tot_s = sum(grid[c][d][t][0] for c in grid)
@@ -175,11 +180,109 @@ for t in range(NW):
         rest = [tot_s - used[0], tot_b - used[1], tot_o - used[2]]
         assert .2 < rest[1] / rest[0] < .6, (t, d, rest[1] / rest[0])
         landing[d]["rest"].append(rest)
+    # week-to-week pull of each page's main channel (the same draws as before, so the products below don't move)
     for key, *_, top, first in PAGES:
         if key == "juniper":
-            src[key].append(["social", .71] if t == W41 else [top, round(.31 + g(.02), 2)])
+            pull[key].append(None if t == W41 else (.31 + g(.02)) / .31)
         else:
-            src[key].append([top, round(.38 + g(.04), 2)])
+            pull[key].append((.38 + g(.04)) / .38)
+
+# ---------------------------------------------------------------- landing page x channel (joint, so sources reconcile)
+# Each session starts on one page and comes from one channel, so per week x device the page x channel sessions must add
+# up to the page totals (rows) and to the grid's channel sessions (columns). Start from an affinity (how much more often a
+# channel's visitors start on that page than on the average page) and rake it to both totals; the top source of a page is
+# then read from this table, never set on its own.
+CHK = [c[0] for c in CH]
+AFF = {"home": {"direct": 3.2, "organic": 1.3, "search": .7, "email": .35, "social": .25, "other": 1.1},
+       "gift": {"email": 15.0, "social": .8, "search": 1.1, "organic": .9, "direct": .7, "other": .9},
+       "juniper": {"search": 2.2, "social": 1.3, "organic": .9, "direct": .6, "email": .5, "other": .8},
+       "outer": {"organic": 2.4, "search": 1.2, "direct": .8, "email": .9, "social": .6, "other": .9},
+       "sale": {"search": 2.5, "organic": .9, "direct": .7, "email": 1.3, "social": .8, "other": 1.2},
+       "new": {"email": 11.0, "organic": 1.1, "search": .9, "direct": .8, "social": .7, "other": .9}}
+TOP = {p[0]: p[5] for p in PAGES}
+JUNIPER_W41_SOCIAL = .71   # the "Juniper in black" ad: share of the page's W41 sessions that come from paid social
+
+
+def rake(rows, cols, aff, it=200):
+    m = [[a * r * c for a, c in zip(ar, cols)] for ar, r in zip(aff, rows)]
+    for _ in range(it):
+        for i, r in enumerate(rows):
+            s = sum(m[i])
+            m[i] = [v * r / s for v in m[i]] if s else m[i]
+        for j, c in enumerate(cols):
+            s = sum(m[i][j] for i in range(len(rows)))
+            for i in range(len(rows)):
+                m[i][j] = m[i][j] * c / s if s else 0
+    return m
+
+
+def int_mix(m, rows, cols):
+    # pages: largest-remainder rounding to the page total; "All other pages" takes what each channel has left
+    out = []
+    for i, r in enumerate(rows[:-1]):
+        fl = [int(v) for v in m[i]]
+        for j in sorted(range(len(fl)), key=lambda j: m[i][j] - fl[j], reverse=True)[:r - sum(fl)]:
+            fl[j] += 1
+        out.append(fl)
+    out.append([c - sum(o[j] for o in out) for j, c in enumerate(cols)])
+    assert min(out[-1]) >= 0, out[-1]
+    return out
+
+
+PK = [p[0] for p in PAGES] + ["rest"]
+mix = {d: {k: [] for k in PK} for d in DEV}
+for t in range(NW):
+    def solve(js):
+        res = {}
+        for d in DEV:
+            rows = [landing[d][k][t][0] for k in PK]
+            cols = [grid[c][d][t][0] for c in CHK]
+            aff = []
+            for k in PK:
+                if k == "rest":
+                    aff.append([1.0] * len(CHK)); continue
+                a = dict(AFF[k])
+                if k == "juniper" and t == W41:
+                    a["social"] = js
+                elif pull[k][t] is not None:
+                    a[TOP[k]] *= pull[k][t]
+                aff.append([a[c] for c in CHK])
+            res[d] = int_mix(rake(rows, cols, aff), rows, cols)
+        return res
+    if t == W41:   # find the social pull that gives the ad's share of Juniper sessions
+        lo, hi = 1.0, 200.0
+        for _ in range(40):
+            mid = (lo * hi) ** .5
+            r = solve(mid)
+            j = PK.index("juniper"); sh = sum(r[d][j][CHK.index("social")] for d in DEV) / sum(sum(r[d][j]) for d in DEV)
+            lo, hi = (mid, hi) if sh < JUNIPER_W41_SOCIAL else (lo, mid)
+        r = solve((lo * hi) ** .5)
+    else:
+        r = solve(None)
+    for d in DEV:
+        for i, k in enumerate(PK):
+            mix[d][k].append(r[d][i])
+
+# reconcile: rows = page sessions, columns = channel sessions, for every week x device
+for t in range(NW):
+    for d in DEV:
+        for k in PK:
+            assert sum(mix[d][k][t]) == landing[d][k][t][0] and min(mix[d][k][t]) >= 0, (t, d, k)
+        for j, c in enumerate(CHK):
+            assert sum(mix[d][k][t][j] for k in PK) == grid[c][d][t][0], (t, d, c)
+
+# top source per page and week, all devices (a summary; the page recomputes it for the filters you pick)
+for t in range(NW):
+    for k in src:
+        by = [sum(mix[d][k][t][j] for d in DEV) for j in range(len(CHK))]
+        tot_k = sum(by)
+        j = max(range(len(CHK)), key=lambda j: by[j])
+        src[k].append([CHK[j], round(by[j] / tot_k, 2) if tot_k else 0])
+    # a page's top source can never claim more sessions than its channel had (pages are mutually exclusive starts)
+    for c in CHK:
+        claimed = sum(src[k][t][1] * sum(landing[d][k][t][0] for d in DEV) for k in src if src[k][t][0] == c)
+        assert claimed <= sum(grid[c][d][t][0] for d in DEV), (t, c, claimed)
+assert src["juniper"][W41][0] == "social" and abs(src["juniper"][W41][1] - JUNIPER_W41_SOCIAL) <= .01, src["juniper"][W41]
 
 # ---------------------------------------------------------------- products
 # key, name, category, price, W40 page views (K), add-to-cart rate
@@ -224,7 +327,7 @@ events = {
 out = {"meta": {"brand": "Sunday Studio", "asOf": "2026-11-16", "weeks": WEEKS},
        "channels": [{"k": c[0], "name": c[1]} for c in CH], "devices": DEV,
        "grid": grid, "email": email,
-       "landing": {"pages": [{"k": p[0], "name": p[1]} for p in PAGES], "data": landing, "src": src},
+       "landing": {"pages": [{"k": p[0], "name": p[1]} for p in PAGES], "data": landing, "src": src, "mix": mix},
        "products": {"list": [{"k": p[0], "name": p[1], "cat": p[2], "price": p[3]} for p in PRODUCTS], "data": products},
        "events": events}
 with open(os.path.join(HERE, "ecom.json"), "w") as f:

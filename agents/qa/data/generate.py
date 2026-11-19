@@ -61,7 +61,7 @@ assert abs(thu - fri) >= 0.05 and abs(thu_c - fri_c) >= 0.3
 cause(id="c-price", agent="ceo", issue="num", by="checker", status="ship", root="late", owner="Data engineering", tests=3,
       title="Late share-price feed", days=[day_ix(11, 9)] * 7, types=["brief"] + ["chat"] * 6,
       summary="the share-price feed landed at 7:40, after the 7:00 brief, so the brief and 6 answers quoted Thursday's close",
-      fix="Check the feed's load time before answering. Until today's close lands, the brief and the chatbot say \"price not updated yet\".",
+      fix="Check the feed's load time before answering. Until the close of the latest completed trading session has loaded (on a Monday morning, Friday's), the brief and chat answers say \"price not updated yet\".",
       shipped="Tue 11/10",
       ex=[{"type": "brief", "when": when(11, 9, "7:00"), "scope": "Morning brief",
            "q": "Morning brief, Mon 11/9 — share price",
@@ -149,7 +149,7 @@ assert abs(wos_ok - wos_bad) >= 0.3, (wos_ok, wos_bad)
 cause(id="c-stock", agent="ppa", issue="num", by="checker", status="conf", root="late", owner="Data engineering",
       title="Stock snapshot a week old", days=[day_ix(11, 10), day_ix(11, 11), day_ix(11, 12), day_ix(11, 13)], types=["chat"] * 4,
       summary="the store stock feed stopped updating, so 4 weeks-of-supply answers used the week-before stock",
-      fix="Draft: check the stock snapshot's date before answering; if it is older than a day, the answer says so.",
+      fix="Draft: stock is a weekly snapshot, so check that the latest expected one (end of last week) has loaded before answering; if the agent only has an older one, the answer names its date.",
       ex=[{"type": "chat", "when": when(11, 10, "11:40"), "scope": "Chatbot · North America",
            "q": "How many weeks of supply do we have on Cloud Crew?",
            "a": f"Cloud Crew has <mark>{wos_bad:.1f} weeks</mark> of supply, selling about {avg:,.0f} units a week.",
@@ -299,6 +299,38 @@ for a in AGENTS:
             out.append([f, sum(1 for _ in range(f) if rng.random() < .062)])
     review[k] = out
 
+# the same decisions split by output type and by who raised the flag: {type: [checker reviewed, checker false, judge reviewed, judge false]}
+# A separate seed, so the totals above (and everything drawn after them) stay as they were.
+rng2 = random.Random(23)
+def judge_share(wi): return .31 - .12 * wi / LW + rng2.uniform(-.03, .03)    # judge guards shipped over the quarter, so its share falls
+review_by = {}
+for a in AGENTS:
+    k = a["k"]; out = []
+    for wi in range(13):
+        row = {}
+        if wi == TW:   # from this week's causes: pending flags have no decision yet
+            for ty in ("chat", "brief"):
+                r = [0, 0, 0, 0]
+                for c in causes:
+                    if c["agent"] != k or c["status"] == "rev": continue
+                    n = c["types"].count(ty); j = 2 if c["by"] == "judge" else 0
+                    r[j] += n; r[j + 1] += n if c["status"] == "fa" else 0
+                row[ty] = r
+        else:
+            sh = judge_share(wi)
+            flags = [(ty, "judge" if rng2.random() < sh else "checker") for ty in ("chat", "brief")
+                     for _ in range(sum(grid[k][ty][d][4] for d in range(7 * wi, 7 * wi + 7)))]
+            pool, fa = list(range(len(flags))), set()
+            for _ in range(review[k][wi][1]):        # place the week's false alarms; a judge flag is ~7x as likely to be one
+                i = rng2.choices(pool, weights=[7 if flags[x][1] == "judge" else 1 for x in pool])[0]
+                pool.remove(i); fa.add(i)
+            for ty in ("chat", "brief"):
+                ix = [i for i, f in enumerate(flags) if f[0] == ty]
+                cr = [i for i in ix if flags[i][1] == "checker"]; jr = [i for i in ix if flags[i][1] == "judge"]
+                row[ty] = [len(cr), sum(i in fa for i in cr), len(jr), sum(i in fa for i in jr)]
+        out.append(row)
+    review_by[k] = out
+
 # fixes shipped, last 4 weeks, with release-test numbers assigned in order
 FIX_OLD = [(9, "ppa", "Fiscal week labels match the calendar each page uses", 5),
            (10, "ceo", "Peer comparisons use the same three peers as the brief", 3),
@@ -342,10 +374,24 @@ def claims():
     assert allf < allf_lw
     for k in ("ppa", "ecom"): assert tw[k] < lw[k]                                   # last week's fixes worked
     assert tw["ceo"] > lw["ceo"]
+    # reviewer decisions by type and detector reconcile with the weekly totals, the grid and this week's causes
+    for k in tw:
+        for wi in range(13):
+            rb = review_by[k][wi]
+            assert [sum(rb[t][0] + rb[t][2] for t in rb), sum(rb[t][1] + rb[t][3] for t in rb)] == review[k][wi], (k, wi)
+            for t in rb:
+                assert 0 <= rb[t][1] <= rb[t][0] and 0 <= rb[t][3] <= rb[t][2]
+                pend = sum(c["types"].count(t) for c in causes if c["agent"] == k and c["status"] == "rev") if wi == TW else 0
+                assert rb[t][0] + rb[t][2] + pend == wsum(k, wi, 4, (t,)), (k, wi, t)
+    tot = lambda wis, j: sum(review_by[k][wi][t][j] for k in tw for wi in wis for t in ("chat", "brief"))
+    assert (tot([TW], 2), tot([TW], 3)) == (4, 1) and (tot([TW], 0) + tot([TW], 2), tot([TW], 1) + tot([TW], 3)) == (21, 1)
+    hist = range(TW)
+    jr, jf, cr, cf = tot(hist, 2), tot(hist, 3), tot(hist, 0), tot(hist, 1)
+    assert .12 < jf / jr < .30 and cf / cr < .04, (jf, jr, cf, cr)                   # the judge's flags are the noisier ones
 claims()
 
 out = {"meta": {"brand": "Sunday Studio", "asOf": "2026-11-16", "weeks": WEEKS, "lw": LW, "tw": TW, "runAt": "2:00"},
-       "agents": AGENTS, "issues": ISSUES, "grid": grid, "review": review, "testsWk": tests_wk, "testsTotal": TOTAL_TESTS,
+       "agents": AGENTS, "issues": ISSUES, "grid": grid, "review": review_by,"testsWk": tests_wk, "testsTotal": TOTAL_TESTS,
        "fixes": fixes, "causes": causes}
 (HERE / "qa.json").write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
 tot = sum(wsum(a["k"], TW, 0) for a in AGENTS); cl = sum(wsum(a["k"], TW, 1) for a in AGENTS); bd = sum(wsum(a["k"], TW, 2) for a in AGENTS)

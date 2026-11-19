@@ -69,7 +69,15 @@
     return { tw, lw, cs, real: nOf(real), fa: nOf(fa), rev: nOf(rev), late: nOf(cs.filter(x => x.root === 'late')), label,
       byChecker: nOf(cs.filter(x => x.by === 'checker')), byJudge: nOf(cs.filter(x => x.by === 'judge')), ships: cs.filter(x => x.status === 'ship') };
   }
-  const tests = (ks = KS()) => D.fixes.filter(f => f.w === TW && ks.includes(f.agent)).reduce((s, f) => s + f.tests, 0);
+  // reviewer decisions over 13 weeks for the agents and output types in view; det = 'checker' | 'judge' | undefined (both).
+  // Past weeks from the review log; this week from the causes, with your verdicts applied. Pending flags have no decision.
+  function reviews(det, ks = KS(), ts = TS()) {
+    const a = { r: 0, f: 0 }, js = det === 'judge' ? [2] : det === 'checker' ? [0] : [0, 2];
+    ks.forEach(k => D.review[k].forEach((w, wi) => { if (wi !== TW) ts.forEach(t => js.forEach(j => { a.r += w[t][j]; a.f += w[t][j + 1]; })); }));
+    causes(ks, ts).filter(x => (!det || x.by === det) && x.status !== 'rev').forEach(x => { a.r += x.n; if (x.status === 'fa') a.f += x.n; });
+    return a;
+  }
+  const tests = (ks = KS()) =>D.fixes.filter(f => f.w === TW && ks.includes(f.agent)).reduce((s, f) => s + f.tests, 0);
   const testRange = l => { const f = l.filter(x => x.tests); if (!f.length) return ''; const a = Math.min(...f.map(x => x.from)), b = Math.max(...f.map(x => x.to)); return a === b ? `#${a}` : `#${a}–#${b}`; };
 
   // ---------------------------------------------------------------- building blocks
@@ -93,7 +101,7 @@
     const ch = sum(TW, ks, ['chat']).out, br = sum(TW, ks, ['brief']).out;
     const top = V.cs.slice().sort((a, b) => b.n - a.n)[0];
     const sumRows = [
-      ['Reviewed', `${n0(tw.out)} outputs from ${one ? AG(ks[0]).name : 'three agents'}${st.ty === 'all' ? `: ${n0(ch)} chatbot answers and ${n0(br)} written ${br === 1 ? 'brief' : 'briefs'}` : ''}. Every number, direction word and ranking is re-computed from the source; an LLM judge scores the rest.`],
+      ['Reviewed', `${n0(tw.out)} outputs from ${one ? AG(ks[0]).name : 'three agents'}${st.ty === 'all' ? `: ${n0(ch)} chatbot answers and ${n0(br)} written ${br === 1 ? 'brief' : 'briefs'}` : ''}. Each night the checker re-computed every number, direction word and ranking from the source; an LLM judge scored the rest.`],
       ['Claims', `${n0(tw.cl)} checked, ${tw.bad} didn't match the source${!one && tw.bad ? (() => { const w = ks.map(k => [k, sum(TW, [k]).bad]).sort((a, b) => b[1] - a[1])[0]; return ` — ${w[1]} of them in ${AG(w[0]).name}`; })() : ''}.`],
       ['Flagged', `${tw.fl} ${tw.fl === 1 ? 'output' : 'outputs'}, ${tw.fl < lw.fl ? 'down' : tw.fl > lw.fl ? 'up' : 'level'} ${tw.fl === lw.fl ? 'with' : 'from'} ${lw.fl} last week.${!one ? ' ' + ks.map(k => { const a = sum(TW, [k]).fl, b = sum(LW, [k]).fl; return `${AG(k).name} ${b} → ${a}`; }).join(', ') + '.' : ''}`],
     ];
@@ -148,14 +156,14 @@
     const J = ['Accuracy', 'Relevance', 'Grounding'];
     let fx;
     if (x.status === 'rev') fx = '';
-    else if (x.decided) fx = `<div class="fix${x.status === 'fa' ? ' fa' : ''}"><span class="t">${x.status === 'fa' ? 'FALSE ALARM' : 'FIX DRAFTED'}</span>${esc(x.status === 'fa' ? x.fixN : x.fixY)} <button type="button" class="ppa-link" data-undo="${x.id}">Undo</button></div>`;
+    else if (x.decided) fx = `<div class="fix${x.status === 'fa' ? ' fa' : ' draft'}"><span class="t">${x.status === 'fa' ? 'FALSE ALARM' : 'FIX DRAFTED'}</span>${esc(x.status === 'fa' ? x.fixN : x.fixY)} <button type="button" class="ppa-link" data-undo="${x.id}">Undo</button></div>`;
     else if (x.status === 'fa') fx = `<div class="fix fa"><span class="t">FALSE ALARM</span>${esc(x.fix)}</div>`;
     else fx = `<div class="fix${x.status === 'conf' ? ' draft' : ''}"><span class="t">${x.status === 'ship' ? 'FIX SHIPPED ' + esc(x.shipped).toUpperCase() : 'FIX DRAFTED'}</span>${esc(x.fix)}${x.test ? `<br><span class="test">→ added to release tests ${x.test}</span>` : x.status === 'conf' ? `<br><span class="test dr">Owner: ${esc(x.owner)} · becomes a release test when it ships</span>` : ''}</div>`;
     return `<div class="dt-meta">${esc(AG(x.agent).name)} · ${esc(e.scope)} · ${esc(e.when)} ${chip(x.status)}</div>
       <div class="dt-n">${esc(x.title)} · ${plural(x.n, 'output')} this week · example below</div>
       <div class="dt-q">${e.type === 'brief' ? esc(e.q) : '"' + esc(e.q) + '"'}</div>
       <div class="dt-a">${e.a}</div>
-      <div class="dt-h"><span>Claim checker · re-computed from the source</span><span>${chk ? `${chk - bad} of ${chk} match` : 'nothing to check'}</span></div>
+      <div class="dt-h"><span>Claim checker · nightly re-check result</span><span>${chk ? `${chk - bad} of ${chk} match` : 'nothing to check'}</span></div>
       <div class="inl"><b>INLINE CHECK</b>${esc(e.inl)}</div>
       <ul class="claims">${cl}</ul>
       <div class="dt-h"><span>LLM judge</span><span>1–5 · sees the checker's result</span></div>
@@ -174,7 +182,7 @@
       <div class="ppa-kick">2 · Flagged — what went wrong, and is it real?</div>
       <div class="ppa-kpis">
         ${kpi('Flagged', String(V.tw.fl), `${V.byChecker} by the checker · ${V.byJudge} by the judge`)}
-        ${kpi('Confirmed by a reviewer', String(V.real), `real issues · ${plural(V.fa, 'false alarm')}`)}
+        ${kpi('Confirmed by a reviewer', String(V.real), `${V.real === 1 ? 'real issue' : 'real issues'}${V.fa ? ` · ${plural(V.fa, 'false alarm')} not counted` : ''}`)}
         ${kpi('Needs review', String(V.rev), V.rev ? 'waiting on the agent owner' : 'every flag has a decision')}
         ${kpi('Fixes shipped', String(ships.length), tn ? `${plural(tn, 'new release test')} · ${D.testsTotal} in total` : `${D.testsTotal} release tests in total`)}
       </div>
@@ -192,8 +200,7 @@
   // ---------------------------------------------------------------- Trends
   function trendsTab(V) {
     const ks = KS(), first = sum(0), now = V.tw;
-    const rv = ks.reduce((a, k) => { D.review[k].forEach(([r, f], wi) => { if (wi === TW) return; a.r += r; a.f += f; }); return a; }, { r: 0, f: 0 });
-    rv.r += V.real + V.fa; rv.f += V.fa;
+    const rv = reviews();
     const fx = D.fixes.filter(f => ks.includes(f.agent)).sort((a, b) => b.w - a.w || a.from - b.from);
     const fxN = (f, wi) => sum(wi, [f.agent], ['chat', 'brief']).fl;
     const done = fx.filter(f => f.w < TW).map(f => ({ ...f, a: fxN(f, f.w), b: fxN(f, f.w + 1) })).sort((a, b) => (b.a - b.b) - (a.a - a.b));
@@ -201,7 +208,7 @@
     const wTop = worse && causes([worse[0]]).sort((a, b) => b.n - a.n)[0];
     const rows = [
       ['Direction', `Flag rate is ${now.rate < first.rate ? 'down' : 'up'} from ${p1(first.rate)} to ${p1(now.rate)} in 13 weeks${ks.length > 1 && ks.every(k => sum(TW, [k]).rate < sum(0, [k]).rate) ? ', and every agent is lower than it started' : ''}.`],
-      done.length ? ['Biggest fix', `${AG(done[0].agent).name}, week of ${wlab(done[0].w)}: ${done[0].fix.charAt(0).toLowerCase() + done[0].fix.slice(1)}. Its flags went ${done[0].a} → ${done[0].b} the week after.`] : ['Fixes', 'No fix shipped in the last four weeks for this view.'],
+      done.length ? ['Biggest drop', `${AG(done[0].agent).name}, week of ${wlab(done[0].w)}: ${done[0].fix.charAt(0).toLowerCase() + done[0].fix.slice(1)}. The agent's flags went ${done[0].a} → ${done[0].b} the week after. Other causes moved too, so its release tests (${done[0].from === done[0].to ? '#' + done[0].from : `#${done[0].from}–#${done[0].to}`}) are what check the fixed cases.`] : ['Fixes', 'No fix shipped in the last four weeks for this view.'],
       ['Watch', worse ? `${AG(worse[0]).name} rose this week (${sum(LW, [worse[0]]).fl} → ${sum(TW, [worse[0]]).fl}). Biggest cause: ${wTop.title.charAt(0).toLowerCase() + wTop.title.slice(1)} — ${statusPhrase(wTop)}.` : 'No agent in this view has more flags than last week.'],
     ];
     const W = 300, H = 112, px = 26, py = 16;
@@ -222,13 +229,13 @@
       <div class="ppa-kpis">
         ${kpi('Flag rate', p1(now.rate), `<b class="${tone(now.rate - first.rate, true)}">${arrow(now.rate - first.rate)}</b>from ${p1(first.rate)} 13 weeks ago`)}
         ${kpi('Claims matching the source', p1(now.match), `<b class="${tone(now.match - first.match)}">${arrow(now.match - first.match)}</b>from ${p1(first.match)} 13 weeks ago`)}
-        ${kpi('Reviewer agreement', p1(1 - rv.f / rv.r).replace('.0%', '%'), `of ${n0(rv.r)} flags reviewed in 13 weeks`)}
+        ${kpi('Reviewer agreement', rv.r ? p1(1 - rv.f / rv.r).replace('.0%', '%') : 'n/a', rv.r ? `of ${n0(rv.r)} flags reviewed in 13 weeks` : 'no flags reviewed in 13 weeks')}
         ${kpi('Release tests', String(D.testsTotal), `<b class="up">+${D.testsWk.reduce((a, b) => a + b, 0)}</b> from QA flags in 13 weeks · all agents`)}
       </div>
-      ${insBox(rows, alertBox([], 0, 'No fixed mistake has come back. Every confirmed issue runs as a release test before the next release.'))}
+      ${insBox(rows, alertBox([], 0, 'Nothing to act on in trends. Each fixed case runs as a release test before every release, the guard against the same mistake shipping again.'))}
     </section>
     <section class="ppa-card"><h3>Flag rate by agent</h3><div class="sub">Share of ${TYN[st.ty]} flagged, weeks of ${wlab(0)} to ${wlab(12)}. Green ticks = a fix shipped.</div><div class="sm3${series.length === 1 ? ' one' : ''}">${sm}</div></section>
-    <section class="ppa-card"><h3>Fixes shipped</h3><div class="sub">Last 4 weeks. Each fix adds release tests, so the same mistake is caught before the next release.</div>
+    <section class="ppa-card"><h3>Fixes shipped</h3><div class="sub">Last 4 weeks. Each fix adds release tests that re-run the fixed case before every release. Flags the week after include every cause, not just the fixed one.</div>
       ${fx.length ? `<div class="ppa-tw"><table><thead><tr><th>Week of</th><th>Agent</th><th>Fix</th><th class="n">Agent's flags, that week → next</th><th>Release tests</th></tr></thead><tbody>
       ${fx.map(f => `<tr><td>${wlab(f.w)}</td><td>${esc(AG(f.agent).name)}</td><td class="wrap">${esc(f.fix)}</td><td class="n">${f.w < TW ? `${fxN(f, f.w)} → ${fxN(f, f.w + 1)}` : '<span class="mu">next week</span>'}</td><td><span class="test">${f.from === f.to ? '#' + f.from : `#${f.from}–#${f.to}`}</span></td></tr>`).join('')}
       </tbody></table></div>` : '<p class="note">No fix shipped for this agent in the last four weeks.</p>'}
@@ -246,11 +253,12 @@
     const shipped = cs.filter(x => x.status === 'ship');
     const real = cs.filter(x => x.status === 'conf' || x.status === 'ship').reduce((s, x) => s + x.n, 0), fa = cs.filter(x => x.status === 'fa'), faN = fa.reduce((s, x) => s + x.n, 0);
     const tn = shipped.reduce((s, x) => s + x.tests, 0);
+    const jAll = cs.filter(x => x.by === 'judge'), jN = jAll.reduce((s, x) => s + x.n, 0), jFa = jAll.filter(x => x.status === 'fa'), jFaN = jFa.reduce((s, x) => s + x.n, 0);
     const stat = (l, v, d) => `<div class="ins-stat"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
     return `<div class="ppa-card">
       <div class="ins-mast"><span>QA Agent · three agents · ${n0(tw.out)} outputs · ${wlab(TW)}</span><span class="ok">✓ every figure here comes from the same sums as the page</span></div>
       <h2 class="ins-hl">${tw.fl} outputs flagged, ${tw.fl < lw.fl ? 'down' : 'up'} from ${lw.fl} — <em>${lateN} of them read data that arrived late</em>.</h2>
-      <p class="ins-deck">${worked.length ? `Last week's fixes ${words(worked.map(([f, a, b]) => `took ${AG(f.agent).name} from <strong>${a}</strong> flags to <strong>${b}</strong>`))}. ` : ''}${up.map(([k, a, b]) => `${AG(k).name} went the other way, <strong>${a} → ${b}</strong>: ${causes([k], ts).sort((x, y) => y.n - x.n)[0].summary}.`).join(' ')}</p>
+      <p class="ins-deck">${worked.length ? `After last week's fixes shipped, flags fell in ${words(worked.map(([f, a, b]) => `${AG(f.agent).name} (<strong>${a}</strong> → <strong>${b}</strong>)`))}; the fixed cases now run as release tests ${testRange(worked.map(x => x[0]))}. ` : ''}${up.map(([k, a, b]) => `${AG(k).name} went the other way, <strong>${a} → ${b}</strong>: ${causes([k], ts).sort((x, y) => y.n - x.n)[0].summary}.`).join(' ')}</p>
       <div class="ins-h">This week</div>
       <div class="ins-stats">
         ${stat('Outputs reviewed', n0(tw.out), `${n0(sum(TW, ks, ['chat']).out)} chat · ${sum(TW, ks, ['brief']).out} briefs`)}
@@ -258,13 +266,13 @@
         ${stat('Flagged', String(tw.fl), `${lwv(tw.fl, lw.fl, true, x => (x > 0 ? '+' : M) + Math.abs(x))} vs last week`)}
         ${stat('Judge score', tw.judge.toFixed(1), `${lwv(+tw.judge.toFixed(1), +lw.judge.toFixed(1), false, x => sgn(x))} vs last week`)}
       </div>
-      ${monLate.length >= 2 ? `<div class="ins-h">Pattern</div><p class="ins-p">${plural(monLate.length, 'cause')} went wrong on Monday morning, before the weekend's data had landed: ${[...new Set(monLate.map(x => x.agent))].map(k => `in ${AG(k).name}, ${words(monLate.filter(x => x.agent === k).map(x => esc(x.title.charAt(0).toLowerCase() + x.title.slice(1))))}`).join('; ')}. One rule for every agent would cover them: on Mondays, check each source's load time before answering.</p>` : ''}
+      ${monLate.length >= 2 ? `<div class="ins-h">Pattern</div><p class="ins-p">${plural(monLate.length, 'cause')} went wrong on Monday morning, before the weekend's data had landed: ${[...new Set(monLate.map(x => x.agent))].map(k => `in ${AG(k).name}, ${words(monLate.filter(x => x.agent === k).map(x => esc(x.title.charAt(0).toLowerCase() + x.title.slice(1))))}`).join('; ')}. One rule for every agent would cover them: before answering, check that each source has loaded its latest expected update (on a Monday morning, Friday's close and Sunday's sales).</p>` : ''}
       <div class="ins-h">What to fix first</div>
       <div class="ins-acts">${open.map((x, i) => `<div class="ins-act"><div class="n">${i + 1} · ${esc(AG(x.agent).name)} · ${plural(x.n, 'flag')}</div><h4>${esc(x.title)}</h4><p>${esc(cap(x.summary))}. ${esc(x.status === 'rev' ? 'Waiting on a reviewer before a fix is drafted.' : x.fix)}</p><span class="own">${esc(x.owner)} · ${x.status === 'rev' ? 'needs review' : 'to approve'}</span></div>`).join('')}</div>
       <div class="ins-h">Shipped this week</div>
       <p class="ins-p">${shipped.map(x => `${esc(AG(x.agent).name)}: ${esc(x.fix.charAt(0).toLowerCase() + x.fix.slice(1).replace(/\.$/, ''))} (${esc(x.shipped)}).`).join(' ')}</p>
       <div class="ins-h">Checking the judge</div>
-      <p class="ins-p">Reviewers agreed with ${real} of ${real + faN} flags.${fa.length ? ` ${cap(plural(faN, 'false alarm'))}: ${esc(fa[0].fix.replace(/^False alarm: /, ''))}` : ''}</p>
+      <p class="ins-p">The judge raised ${jN} of the week's ${tw.fl} flags; reviewers marked ${plural(jFaN, 'of them a false alarm', 'of them false alarms')}${jFa.length ? `: ${esc(jFa[0].fix.replace(/^False alarm: /, ''))}` : '.'} Across all ${real + faN} reviewed flags, reviewers confirmed ${real}; false alarms stay in the flag count as history but not in confirmed issues.</p>
       <div class="ins-h">Added to release tests</div>
       <p class="ins-p">${plural(tn, 'new test')} this week (${testRange(D.fixes.filter(f => f.w === TW))}), ${D.testsTotal} in total. Every confirmed issue becomes a test, and every release has to pass them all.</p>
       <div class="ins-foot">Written by the agent every Monday from the week's seven nightly runs. It covers every agent and output, whatever filters the page has.</div>
@@ -278,7 +286,7 @@
     { k: 'worse', q: 'Which agent got worse, and why?' },
     { k: 'inline', q: "Why didn't the inline check catch it?" },
     { k: 'review', q: "What's still waiting for review?" },
-    { k: 'judge', q: 'How often is the judge wrong?' },
+    { k: 'judge', q: "How often are the judge's flags false alarms?" },
   ];
   function answer(k) {
     const V = view(), ks = KS(), scope = V.label, all = V.tw.fl;
@@ -296,7 +304,7 @@
         return pack(head, lis, ledger, checks, src, scope);
       }
       head = `${esc(top.title)} in ${esc(AG(top.agent).name)}: ${L(top.n, 'Flagged › ' + top.title)} of the week's ${L(all, 'Overview › Outputs flagged')} flags.`;
-      lis.push(cap(ct(esc(top.summary), 'Flagged › ' + top.title + ' › summary')) + '.');
+      lis.push(ct(esc(cap(top.summary)), 'Flagged › ' + top.title + ' › summary') + '.');
       lis.push(top.status === 'ship' ? `The fix shipped ${esc(top.shipped)}: ${ct(esc(top.fix.charAt(0).toLowerCase() + top.fix.slice(1)), 'Flagged › fix')} Release tests ${esc(top.test)} now cover it.` : `Status: ${esc(statusPhrase(top))}.`);
       const second = cs[1];
       checks.push({ ok: !second || second.n < top.n, t: `"biggest" checked: ${second ? `next cause has ${second.n}` : 'only cause in view'}` });
@@ -306,13 +314,14 @@
       if (!f.length) {
         const prev = D.fixes.filter(x => x.w < LW && ks.includes(x.agent)).sort((a, b) => b.w - a.w)[0];
         head = `No fix shipped last week for ${esc(ks.length > 1 ? 'these agents' : AG(ks[0]).name)}.`;
-        if (prev) lis.push(`The last one was the week of ${esc(wlab(prev.w))}: ${ct(esc(prev.fix.charAt(0).toLowerCase() + prev.fix.slice(1)), 'Trends › Fixes shipped')}. Its flags went ${L(sum(prev.w, [prev.agent], ['chat', 'brief']).fl, 'Trends › Fixes shipped › that week')} → ${L(sum(prev.w + 1, [prev.agent], ['chat', 'brief']).fl, 'Trends › Fixes shipped › next week')}, all outputs.`);
+        if (prev) lis.push(`The last one was the week of ${esc(wlab(prev.w))}: ${ct(esc(prev.fix.charAt(0).toLowerCase() + prev.fix.slice(1)), 'Trends › Fixes shipped')}. The agent's flags went ${L(sum(prev.w, [prev.agent], ['chat', 'brief']).fl, 'Trends › Fixes shipped › that week')} → ${L(sum(prev.w + 1, [prev.agent], ['chat', 'brief']).fl, 'Trends › Fixes shipped › next week')} the week after, all outputs and all causes.`);
       } else {
         const r = f.map(x => [x, sum(LW, [x.agent], ['chat', 'brief']).fl, sum(TW, [x.agent], ['chat', 'brief']).fl]);
         const cut = r.map(([, a, b]) => (a - b) / a);
         const good = r.filter(([, a, b]) => b < a).length;
-        head = good === r.length ? (r.length > 1 ? `Yes — both cut their agent's flags by ${Math.floor(Math.min(...cut) * 10) * 10}% or more.` : `Yes — flags fell by ${Math.floor(cut[0] * 100)}%.`) : `Mixed — ${good} of ${r.length} cut their agent's flags.`;
-        r.forEach(([x, a, b]) => lis.push(`${esc(AG(x.agent).name)}, all outputs: ${L(a, 'Trends › Fixes shipped › ' + AG(x.agent).short)} → ${L(b, 'Overview › By agent › ' + AG(x.agent).short)} flags after ${ct(esc(x.fix.charAt(0).toLowerCase() + x.fix.slice(1).replace(/\.$/, '')), 'Trends › Fixes shipped')}.`));
+        head = good === r.length ? (r.length > 1 ? `Flags fell after both: down ${Math.floor(Math.min(...cut) * 10) * 10}% or more in each agent the week after.` : `Flags fell ${Math.floor(cut[0] * 100)}% the week after it shipped.`) : `Mixed — flags fell after ${good} of ${r.length}.`;
+        r.forEach(([x, a, b]) => lis.push(`${esc(AG(x.agent).name)}, all outputs: ${L(a, 'Trends › Fixes shipped › ' + AG(x.agent).short)} → ${L(b, 'Overview › By agent › ' + AG(x.agent).short)} flags after ${ct(esc(x.fix.charAt(0).toLowerCase() + x.fix.slice(1).replace(/\.$/, '')), 'Trends › Fixes shipped')} (release tests ${x.from === x.to ? '#' + x.from : `#${x.from}–#${x.to}`}).`));
+        lis.push('That is the drop, not proof of the cause: these counts include every cause, so the release tests are what check the fixed cases themselves.');
         checks.push({ ok: r.every(([, a, b], i) => Math.abs((a - b) / a - cut[i]) < 1e-9), t: `cuts checked: ${cut.map(x => M + Math.round(x * 100) + '%').join(' and ')}` });
         head = head.replace(/(\d+)%/, m => L(m, 'computed from the flags above'));
       }
@@ -338,7 +347,7 @@
       lis.push(`${esc(t.title)} (${esc(AG(t.agent).name)}): ${ct(esc(t.ex.inl.replace(/^Passed — /, '')), 'Flagged › inline check')}`);
       lis.push(`The nightly run doesn't reuse what the agent read. It re-computes from the source: ${ct(esc(bad[0]), 'Flagged › claim checker')} is ${ct(esc(bad[2].split(' · ')[0]), 'Flagged › claim checker › source')}, not ${ct(esc(bad[1]), 'Flagged › claim checker › answer')}.`);
       lis.push('That is why the two checks overlap so little: the inline check catches a misquote; the nightly run catches a wrong input.');
-      checks.push({ ok: true, t: 'source value re-computed from the agent\'s own data' });
+      checks.push({ ok: true, t: 'source value from the nightly re-check\'s recorded result' });
     } else if (k === 'review') {
       src = ['get_flags(status="needs review")'];
       const r = V.cs.filter(x => x.status === 'rev');
@@ -348,16 +357,19 @@
         r.forEach(x => lis.push(`${esc(AG(x.agent).name)} · ${esc(x.title)}: ${ct(esc(x.summary), 'Flagged › summary')}. Open it under Flagged to decide.`));
       }
     } else if (k === 'judge') {
-      src = ['get_reviews(weeks=13)'];
-      const rv = ks.reduce((a, x) => { D.review[x].forEach(([r, f], wi) => { if (wi === TW) return; a.r += r; a.f += f; }); return a; }, { r: 0, f: 0 });
-      rv.r += V.real + V.fa; rv.f += V.fa;
-      head = `About 1 in ${Math.round(rv.r / Math.max(1, rv.f))} flags: ${L(rv.f, 'Trends › Reviewer agreement › false alarms')} false alarms in ${L(n0(rv.r), 'Trends › Reviewer agreement')} reviewed over 13 weeks.`;
+      src = ['get_reviews(weeks=13, by="judge")'];
+      const jr = reviews('judge'), cr = reviews('checker'), tyN = { all: 'flags', chat: 'flags on chat answers', brief: 'flags on briefs' }[st.ty];
+      if (!jr.r) head = `None to measure: no judge ${tyN} in this view have a reviewer decision over 13 weeks.`;
+      else if (!jr.f) head = `None so far: reviewers confirmed all ${L(n0(jr.r), 'Trends › Reviewer agreement › judge flags')} judge ${tyN} they decided over 13 weeks.`;
+      else head = `About 1 in ${Math.round(jr.r / jr.f)}: reviewers marked ${L(jr.f, 'Trends › Reviewer agreement › judge false alarms')} of ${L(n0(jr.r), 'Trends › Reviewer agreement › judge flags')} judge ${tyN} as false alarms over 13 weeks.`;
       ledger.push('1 in N');
-      const jf = V.cs.filter(x => x.by === 'judge');
-      lis.push(`This week the judge raised ${L(jf.reduce((s, x) => s + x.n, 0), 'Flagged › by the judge')} of ${L(all, 'Flagged')} flags${V.fa ? `, and reviewers marked ${L(V.fa, 'Flagged › false alarm')} as a false alarm` : ''}.`);
-      const f = V.cs.find(x => x.status === 'fa' && !x.decided);
+      if (cr.r) lis.push(`For comparison, the checker: ${L(cr.f, 'Trends › Reviewer agreement › checker false alarms')} false ${cr.f === 1 ? 'alarm' : 'alarms'} in ${L(n0(cr.r), 'Trends › Reviewer agreement › checker flags')} reviewed.`);
+      const jf = V.cs.filter(x => x.by === 'judge'), jn = jf.reduce((s, x) => s + x.n, 0), jfa = jf.filter(x => x.status === 'fa').reduce((s, x) => s + x.n, 0);
+      if (jn) lis.push(`This week the judge raised ${L(jn, 'Flagged › by the judge')} of ${L(all, 'Flagged')} flags${jfa ? `; reviewers marked ${L(jfa, 'Flagged › false alarm')} of them as a false alarm` : ''}.`);
+      const f = jf.find(x => x.status === 'fa' && !x.decided);
       if (f) lis.push(`The false alarm: ${ct(esc(f.fix.replace(/^False alarm: /, '')), 'Flagged › ' + f.title)}`);
-      checks.push({ ok: rv.f <= rv.r, t: 'counts checked against 13 weeks of reviewer decisions' });
+      if (jr.r) lis.push('This is the share of reviewed judge flags that were wrong. It says nothing about mistakes the judge never flagged.');
+      checks.push({ ok: jr.f <= jr.r && cr.f <= cr.r, t: 'judge and checker counts checked against 13 weeks of reviewer decisions' });
     }
     return pack(head, lis, ledger, checks, src, scope);
   }
@@ -367,7 +379,7 @@
     const nCited = tmp.querySelectorAll('.cite').length + [...tmp.querySelectorAll('.cite-t')].filter(e => /\d/.test(e.textContent.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+\/\d+|#\d+|\b\d+:\d\d\b/g, ''))).length;
     tmp.querySelectorAll('.cite, .cite-t').forEach(e => e.remove());
     const loose = tmp.textContent.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+\/\d+|#\d+|\b\d+:\d\d\b|\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+(–\d+)?|1 in \d+|\b13 weeks\b/g, '').match(/[+−-]?[$£¥]?\d[\d.,]*\s?(%|pt|K|M)?/g) || [];
-    const all = [{ ok: loose.length === 0, t: `${nCited} ${nCited === 1 ? 'figure' : 'figures'}, all cited${loose.length ? ` — uncited: ${loose.join(', ')}` : ' and match the page'}` }, ...checks];
+    const all = [{ ok: loose.length === 0, t: `${nCited} ${nCited === 1 ? 'figure' : 'figures'}${loose.length ? ` — uncited: ${loose.join(', ')}` : nCited === 1 ? ', cited to a value on this page' : ', each cited to a value on this page'}` }, ...checks];
     if (all.some(x => !x.ok)) return `<div class="hl">Withheld — this answer failed a check, so it isn't shown.</div><div class="chk">${all.map(x => `<span class="${x.ok ? '' : 'bad'}">${x.ok ? '✓' : '✗'} ${esc(x.t)}</span>`).join('')}</div>`;
     return html + `<div class="chk">${all.map(x => `<span>✓ ${esc(x.t)}</span>`).join('')}</div><div class="stamp">${esc(wlab(TW))} · ${esc(stamp)} · ${esc(src.join(', '))}</div>`;
   }
@@ -375,11 +387,13 @@
   const sugHTML = () => `<div class="hint">I read the QA results for <b>${esc(view().label)}</b>, ${esc(wlab(TW))}. Start with one of these —</div>
       <div class="ppa-sugtop">${QS.map((x, i) => `<button type="button" data-i="${i}"${asked.has(i) ? ' disabled' : ''}>→ ${esc(x.q)}</button>`).join('')}
       <div class="ppa-scope"><b>What it covers:</b> the nightly checks, flags, reviewer decisions and fixes on this page, for the filters you have set. <b>Not:</b> the agents' own business data — ask those agents — or anything outside the QA results.</div></div>`;
-  function resetChat() { asked.clear(); log.innerHTML = sugHTML(); }
+  function resetChat() { if (running) return; saved = null; endRun(); asked.clear(); log.innerHTML = sugHTML(); }
   function ask(i) {
     asked.add(i);
     log.querySelectorAll('.ppa-sugtop [data-i]').forEach(b => (b.disabled = asked.has(+b.dataset.i)));
-    log.insertAdjacentHTML('beforeend', `<div class="q">${esc(QS[i].q)}</div><div class="a">${answer(QS[i].k)}${fbBar(i)}</div>`);
+    const a = answer(QS[i].k), turn = newId();
+    logFb({ kind: 'ask', turn, q: QS[i].q, ag: st.ag, ty: st.ty, scope: view().label, a: plain(a.split('<div class="chk">')[0].replace(/<\/(div|li)>/g, ' $&')).replace(/\s+/g, ' ').trim().slice(0, 240) }, false);
+    log.insertAdjacentHTML('beforeend', `<div class="q">${esc(QS[i].q)}</div><div class="a">${a}${fbBar(i, turn)}</div>`);
     log.scrollTop = log.scrollHeight;
   }
   const wordset = t => new Set(t.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1));
@@ -391,65 +405,138 @@
   function typed(t) {
     const i = match(t);
     if (i >= 0) return ask(i);
-    logFb({ kind: 'nodata', q: t.slice(0, 200) });
+    logFb({ kind: 'nodata', turn: newId(), q: t.slice(0, 200), scope: view().label });
     log.insertAdjacentHTML('beforeend', `<div class="q">${esc(t)}</div><div class="a"><span class="tag no">Not in this data</span><div class="hl">Not in this demo's answers.</div>
       <div class="demo">This public demo answers the six questions above from the page's own figures. It is not connected to a language model, because a public page can't safely hold an API key. In production, any question about the checks, flags or fixes gets an answer from the same results, with the same checks.</div></div>`);
     log.scrollTop = log.scrollHeight;
   }
 
+  // ---------------------------------------------------------------- Investigate: the nightly re-check of one flagged output, as an agent run
+  // Same shape as the other agents' runs: the question first, one tool per step, then a person decides.
+  // The dashboard behind the panel follows: Flagged tab, the case marked.
+  const MAX = 6, wait = ms => new Promise(r => setTimeout(r, ms));
+  const PACE = matchMedia('(prefers-reduced-motion: reduce)').matches ? { call: 300, read: 600 } : { call: 400, read: 600 };
+  const head = $('.ppa-chat-h b'), headSub = $('.ppa-chat-h small'), HEAD = [head.textContent, headSub.textContent];
+  let running = false, saved = null, runId = null, prev = null;   // prev: the dashboard as it was before the run, put back when the panel closes
+  const call = (label, tool, rows) => `<div class="ppa-call"><div class="h"><b>${esc(label)}</b><span class="tool">${esc(tool)}</span></div>${rows.map(r => `<div class="r">${r}</div>`).join('')}</div>`;
+  const plain = h => { const d = document.createElement('div'); d.innerHTML = h; return d.textContent; };
+  function markRow() { $$('.ag-hl').forEach(x => x.classList.remove('ag-hl')); const r = runId && $(`[data-sel="${runId}"]`); if (r) { r.classList.add('ag-hl'); if (innerWidth >= 760) r.scrollIntoView({ block: 'center', behavior: 'smooth' }); } }
+  function endRun() { chat.classList.remove('run'); head.textContent = HEAD[0]; headSub.textContent = HEAD[1]; $('.ppa-input').hidden = false; $$('.ag-hl').forEach(x => x.classList.remove('ag-hl')); runId = null; }
+  function leaveRun() { if (saved == null || running) return; log.innerHTML = saved; saved = null; endRun(); restore(); syncLog(); log.scrollTop = log.scrollHeight; }
+  function restore() { if (!prev) return; Object.assign(st, prev); prev = null; runId = null; $$('.ag-hl').forEach(x => x.classList.remove('ag-hl')); render(); }
+  async function investigate(id) {
+    if (running) return;
+    if (!prev) prev = { tab: st.tab, ag: st.ag, ty: st.ty, sel: st.sel };
+    st.ag = 'all'; st.ty = 'all';
+    const x = causes().find(c => c.id === id);
+    if (!x) return;
+    running = true; runId = id;
+    if (saved == null) saved = log.innerHTML;
+    const e = Array.isArray(x.ex) ? x.ex[0] : x.ex, ag = AG(x.agent).name;
+    chat.classList.add('run'); head.textContent = 'Agent run · Nightly re-check'; headSub.textContent = 'Agent loop · max ' + MAX + ' steps · a reviewer decides'; $('.ppa-input').hidden = true;
+    openChat();
+    st.tab = 'flagged'; st.sel = id; render(); markRow();
+    log.innerHTML = `<div class="ppa-biz"><div class="sn">The question</div><p>The ${esc(ag)} ${e.type === 'brief' ? 'brief' : 'chatbot'} ${/^Passed/.test(e.inl) ? "showed this answer after its own check passed" : 'showed this answer'}. Was it right?</p></div><div class="hint">Every night the QA agent re-checks each output step by step: what it claims, what the source says, why they differ, and how a judge scores it. A fixed policy picks the steps, so every run is the same. This replays the recorded run for this output.</div>`;
+    let n = 0;
+    const step = async (why, tool, card, dec) => {
+      n++;
+      log.insertAdjacentHTML('beforeend', `<div class="ppa-step working"><div class="sn">Step ${n} of ${MAX}</div><div class="why">${esc(why)}</div><div class="wk">Calling ${esc(tool)}<i>…</i></div></div>`);
+      const box = log.lastElementChild;
+      log.scrollTo({ top: box.offsetTop - 12, behavior: 'smooth' });
+      await wait(PACE.call);
+      box.querySelector('.wk').remove(); box.insertAdjacentHTML('beforeend', `${card}<div class="dec">${dec}</div>`); box.classList.remove('working');
+      await wait(PACE.read);
+    };
+    const cl = e.claims, bad = cl.filter(c => c[3] === 0), num = s => parseFloat(String(s).replace(/[^0-9.−+-]/g, '').replace('−', '-'));
+    const flip = cl.find(c => /%$/.test(c[1]) && Math.sign(num(c[1])) !== Math.sign(num(c[2])) && c[3] === 0);
+    await step('Read the answer.', 'get_outputs(night)', call(`${ag} · ${e.scope} · ${e.when}`, 'get_outputs(night)', [`<b>Q</b> ${esc(e.q)}`, `<b>A</b> ${esc(plain(e.a))}`]),
+      cl.length ? `It makes ${cl.length} ${cl.length === 1 ? 'claim' : 'claims'} that can be checked against the data. Next: did the agent's own check pass?` : 'No numbers or rankings to check, so it goes to the judge. Next: did the agent\'s own check pass?');
+    const inl = e.inl.split(/(?<=\.)\s+/);
+    await step("Look at the agent's own check: did the answer quote what the agent read?", 'get_inline_check', call('Inline check, before it was shown', 'get_inline_check', [esc(inl[0])]),
+      /^Passed/.test(e.inl) ? 'It passed because the answer matches what the agent read. That proves it quoted its data, not that the data was right. Next: re-compute from the source.' : 'Next: re-compute from the source.');
+    if (cl.length) await step('Re-compute each claim from the source: are the period, scope and numbers actually right?', 'recompute(source)', call('Claim checker', 'recompute(source)', cl.map(c => `<b>${esc(c[0])}</b> answer ${esc(c[1])} · source ${esc(c[2].split(' · ')[0])} ${c[3] === 1 ? '✓' : c[3] === 0 ? '✗' : '–'}`)),
+      `${cl.length - bad.length} of ${cl.length} match${flip ? `, and the direction flipped: ${esc(flip[1])} in the answer, ${esc(flip[2].split(' · ')[0])} in the source` : ''}. Next: why?`);
+    await step('Find why it was wrong.', 'get_context', call('Cause', 'get_context', [`<b>${esc(x.title)}</b>`, esc(x.summary.charAt(0).toUpperCase() + x.summary.slice(1)) + '.']),
+      `${x.n === 1 ? 'One output' : `${x.n} outputs`} this week share this cause. Next: how does the judge score it?`);
+    const J = ['Accuracy', 'Relevance', 'Grounding'];
+    await step('Ask the LLM judge to score it: is it on topic and grounded?', 'judge(rubric)', call('LLM judge · 1–5', 'judge(rubric)', [e.judge.map((v, i) => `<b>${J[i]}</b> ${v}`).join(' · '), esc(e.jwhy)]),
+      e.judge.some(v => v <= 2) ? `${J[e.judge.findIndex(v => v <= 2)]} ${Math.min(...e.judge)} of 5, so it is flagged for a reviewer.` : 'Flagged by the checker for a reviewer.');
+    const decided = x.status !== 'rev';
+    log.insertAdjacentHTML('beforeend', `<div class="ppa-rec"><div class="sn">Flag · ${n} of ${MAX} steps used</div><p><b>${flip ? `The answer said ${esc(flip[1])}; the source says ${esc(flip[2].split(' · ')[0])}. ${x.issue === 'scope' ? 'It read the wrong period, so' : 'So'} the direction is wrong.` : esc(x.title)}</b></p><p class="sub">${esc(x.title)} — ${esc(x.summary)}.</p><div class="own"><span><b>Owner</b> ${esc(x.owner)}</span><span><b>Next</b> ${decided ? esc(x.status === 'fa' ? 'closed as a false alarm' : x.status === 'ship' ? 'fix shipped, now a release test' : 'fix drafted, waiting on the owner') : 'your call: is it a real issue?'}</span></div>${decided ? '' : `<div class="btns"><button type="button" class="ppa-btn dark" data-dec="ok" data-id="${x.id}">✓ Real issue</button><button type="button" class="ppa-btn" data-dec="no" data-id="${x.id}">✗ False alarm</button></div>`}</div><button type="button" class="ppa-back" data-leave>← Back to questions</button>`);
+    const rb = log.querySelector('.ppa-rec'); log.scrollTo({ top: rb.offsetTop - 12, behavior: 'smooth' });
+    running = false;
+  }
+
   // ---------------------------------------------------------------- feedback loop (ratings stay in this browser)
   const FB = 'qa:feedback:v1', DEC_KEY = 'qa:fb-decisions:v1';
   const REASONS = ['Wrong number', 'Not what I asked', 'Too vague', 'Other'];
-  const fbBar = i => `<div class="ppa-fb" data-fq="${i}"><span>Was this useful?</span><button type="button" data-rate="up" aria-label="Useful">👍</button><button type="button" data-rate="down" aria-label="Not useful">👎</button></div>`;
-  const fbForm = i => `<div class="ppa-fbf" data-fq="${i}"><div class="h">What went wrong?</div><div class="chips">${REASONS.map(r => `<button type="button" data-reason="${r}" aria-pressed="false">${r}</button>`).join('')}</div><textarea maxlength="200" placeholder="Optional: what did you expect?" aria-label="What did you expect?"></textarea><div class="row"><span>Stays in your browser · goes into this week's review</span><button type="button" class="send" disabled>Send</button></div></div>`;
+  const fbBar = (i, turn) => `<div class="ppa-fb" data-fq="${i}" data-turn="${turn}"><span>Was this useful?</span><button type="button" data-rate="up" aria-label="Useful">👍</button><button type="button" data-rate="down" aria-label="Not useful">👎</button></div>`;
+  const fbForm = (i, turn) => `<div class="ppa-fbf" data-fq="${i}" data-turn="${turn}"><div class="h">What went wrong?</div><div class="chips">${REASONS.map(r => `<button type="button" data-reason="${r}" aria-pressed="false">${r}</button>`).join('')}</div><textarea maxlength="200" placeholder="Optional: what did you expect?" aria-label="What did you expect?"></textarea><div class="row"><span>Stays in your browser · goes into this week's review</span><button type="button" class="send" disabled>Send</button></div></div>`;
   const fbThanks = () => `<div class="ppa-fbdone">✓ Thanks — logged. <button type="button" class="ppa-link" data-fbr>See what the owner sees → Feedback review</button></div>`;
-  function logFb(rec) {
-    const all = readLS(FB, []); all.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), ...rec }); writeLS(FB, all);
+  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  function logFb(rec, pulse = true) {   // every turn and every rating, one record each; ratings point at their turn
+    const all = readLS(FB, []); all.push({ id: newId(), at: Date.now(), ...rec }); writeLS(FB, all);
+    if (!pulse) return;
     const b = $('[data-fbr-open]'); if (b) { b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 1600); }
   }
+  // The synthetic week, as records. Every tile and every theme count in the review is summed from these plus your own turns.
+  const SEED = { q: 31, prev: 26, up: 6, withheld: 0 };   // questions asked this week and last, 👍, answers the checker withheld
   const REVIEW = {
     headline: 'Agent owners mostly want to see who was affected.',
-    text: 'The agent owners asked <strong>31</strong> questions. The checker withheld <strong>0</strong> answers; the biggest theme is <strong>5</strong> questions asking which users saw a wrong answer, which this agent doesn\'t hold. One theme needs a decision before anyone can fix it.',
-    sig: { q: 31, prev: 26, up: 6, dn: 2, reph: 2, nodata: 7, flags: 0 },
     rows: [
-      { theme: 'Asks which users saw a wrong answer', ex: 'Who saw the wrong share price on Monday?', src: '5 "not in this data"', n: 5, dg: 'def', dl: 'Definition gap?', sug: 'The QA results hold outputs, not who read them. Decide with the agent owners whether to join user logs, and who may see them.', ai: 'def' },
-      { theme: 'Wants flags by region', ex: 'How many flags came from Japan?', src: '2 "not in this data" · 1 rephrased', n: 3, dg: 'und', dl: 'Missing split', sug: 'Each flag already records its region. Add a Region split to the flag list and to this answer.', ai: 'fix' },
-      { theme: '"Fixed" read as "deployed everywhere"', ex: 'Is the price fix live in the brief too?', src: '1 👎', n: 1, dg: 'und', dl: 'Answer too thin', sug: 'Say where each fix shipped — chatbot, brief or both — in the answer and in the fixes table.', ai: 'later' },
-    ],
-    done: [{ t: 'Judge false alarms counted as real issues', d: 'fixed last week · false alarms now leave the flag count · 1 regression test · 1 user told' }],
+      { theme: 'Asks which users saw a wrong answer', ex: 'Who saw the wrong share price on Monday?', sig: { nodata: 5 }, dg: 'def', dl: 'Definition gap?', sug: 'The QA results hold outputs, not who read them. Decide with the agent owners whether to join user logs, and who may see them.', ai: 'def' },
+      { theme: 'Wants flags by region', ex: 'How many flags came from Japan?', sig: { nodata: 2, reph: 1 }, dg: 'und', dl: 'Missing split', sug: 'Each flag already records its region. Add a Region split to the flag list and to this answer.', ai: 'fix' },
+      { theme: '"Fixed" read as "deployed everywhere"', ex: 'Is the price fix live in the brief too?', sig: { dn: 1 }, dg: 'und', dl: 'Answer too thin', sug: 'Say where each fix shipped (chat, brief or both) in the answer and in the fixes table.', ai: 'later' },
+    ].map(r => ({ ...r, n: Object.values(r.sig).reduce((a, b) => a + b, 0),
+      src: Object.entries(r.sig).map(([k, v]) => k === 'dn' ? `${v} 👎` : k === 'reph' ? `${v} rephrased` : `${v} "not in this data"`).join(' · ') })),
+    done: [{ t: 'Judge false alarms counted as real issues', d: 'fixed last week · false alarms stay in the flag history but are excluded from the confirmed-issue count · 1 regression test · 1 user told' }],
   };
+  const sigSum = k => REVIEW.rows.reduce((s, r) => s + (r.sig[k] || 0), 0);
   const DEC = [['fix', 'Fix now'], ['later', 'Later'], ['wont', "Won't fix"], ['def', 'Needs a definition']];
-  function myRows(recs) {
-    return recs.filter(r => r.kind !== 'up').map(r => {
-      const base = { key: r.id, you: true, n: 1, ex: r.q, note: r.note };
-      if (r.kind === 'nodata') return { ...base, theme: 'Typed question with no answer', src: '"not in this data" reply', dg: 'scope', dl: 'Out of scope', sug: "Not in the agent's answers yet. Add it, or say so in the chat's scope note.", ai: 'later' };
+  // your turns and ratings in this browser: one rating per turn (the last one counts)
+  function myFeedback(recs) {
+    const turns = recs.filter(r => r.kind === 'ask' || r.kind === 'nodata'), byTurn = new Map();
+    recs.filter(r => r.kind === 'up' || r.kind === 'down').forEach(r => byTurn.set(r.turn || r.id, r));
+    const rated = [...byTurn.values()], tmap = new Map(turns.map(x => [x.turn || x.id, x]));
+    return { turns, nd: turns.filter(r => r.kind === 'nodata').length, up: rated.filter(r => r.kind === 'up').length,
+      down: rated.filter(r => r.kind === 'down').map(r => ({ ...r, t: tmap.get(r.turn) })) };
+  }
+  function myRows(F) {
+    const rows = F.turns.filter(r => r.kind === 'nodata').map(r => ({ key: r.id, you: true, n: 1, ex: r.q, theme: 'Typed question with no answer', src: '"not in this data" reply', dg: 'scope', dl: 'Out of scope', sug: "Not in the agent's answers yet. Add it, or say so in the chat's scope note.", ai: 'later' }));
+    F.down.forEach(r => {
+      const t = r.t, rec = t ? `Answer shown: "${t.a}" · Scope: ${t.scope}` : '';
+      const base = { key: r.id, you: true, n: 1, ex: r.q, note: r.note, rec, src: '1 👎' };
       if (r.reason === 'Wrong number') {
-        const q = QS.find(x => x.q === r.q), clean = q && !/✗|Withheld/.test(answer(q.k));
-        return { ...base, theme: 'You flagged a wrong number', src: '1 👎', dg: clean ? 'def' : 'bug', dl: clean ? 'Definition gap?' : 'Bug',
-          sug: clean ? 'The checks were re-run and every number matches the page, so the gap is likely the definition you expected.' : 'The re-run found a number that does not match. Fix it and add a test.', ai: clean ? 'def' : 'fix' };
+        const q = QS.find(x => x.q === r.q); let rerun = '';
+        if (q && t && t.ag) { const keep = { ag: st.ag, ty: st.ty }; Object.assign(st, { ag: t.ag, ty: t.ty }); rerun = /Withheld/.test(answer(q.k)) ? 'it now fails a page check' : 'it still passes the page checks'; Object.assign(st, keep); }
+        return rows.push({ ...base, theme: 'Reported discrepancy: wrong number', dg: 'scope', dl: 'Pending triage',
+          sug: `Logged with the question, the answer you saw and its scope${rerun ? `; re-run with that scope, ${rerun}` : ''}. A page check can't rule out a wrong source, unit or denominator, so the owner checks those before naming a cause.`, ai: '' });
       }
       const m = { 'Not what I asked': ['und', 'Misread question', 'Add this wording to the routing examples and the test set.', 'fix'], 'Too vague': ['und', 'Answer too thin', 'Add the follow-up you needed to this answer.', 'later'], Other: ['scope', 'Needs triage', 'Read the note; one report is not a pattern yet.', 'later'] }[r.reason];
-      return { ...base, theme: r.reason === 'Other' ? 'Other feedback' : `"${r.reason}"`, src: '1 👎', dg: m[0], dl: m[1], sug: m[2], ai: m[3] };
+      rows.push({ ...base, theme: r.reason === 'Other' ? 'Other feedback' : `"${r.reason}"`, dg: m[0], dl: m[1], sug: m[2], ai: m[3] });
     });
+    return rows;
   }
   function feedbackReview() {
-    const R = REVIEW, s2 = R.sig, recs = readLS(FB, []), dec = readLS(DEC_KEY, {});
-    const up = recs.filter(r => r.kind === 'up').length, dn = recs.filter(r => r.kind === 'down').length, nd = recs.filter(r => r.kind === 'nodata').length;
-    const mine = myRows(recs), rows = [...mine, ...R.rows.map((r, i) => ({ ...r, key: 'qa-s' + i }))];
-    const you = n => (n ? ` · ${n} from you` : ''), qn = s2.q + nd, dq = s2.q - s2.prev;
+    const R = REVIEW, recs = readLS(FB, []), dec = readLS(DEC_KEY, {}), F = myFeedback(recs);
+    const up = F.up, dn = F.down.length, nd = F.nd;
+    const mine = myRows(F), rows = [...mine, ...R.rows.map((r, i) => ({ ...r, key: 'qa-s' + i }))];
+    const you = n => (n ? ` · ${n} from you` : ''), qn = SEED.q + F.turns.length, dq = qn - SEED.prev;
+    const rated = SEED.up + up + sigSum('dn') + dn, top = R.rows.slice().sort((a, b) => b.n - a.n)[0];
+    const text = `The agent owners asked <strong>${SEED.q}</strong> questions. The checker withheld <strong>${SEED.withheld}</strong> answers; the biggest theme is <strong>${top.n}</strong> questions asking which users saw a wrong answer, which this agent doesn't hold. One theme needs a decision before anyone can fix it.`;
     const tile = (l, v, d) => `<div><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
     const got = rows.filter(r => dec[r.key]), tally = got.length ? `You decided ${got.length} of ${rows.length}: ` + DEC.map(([k, l]) => [l, got.filter(r => dec[r.key] === k).length]).filter(x => x[1]).map(([l, n]) => `${n} ${l.toLowerCase()}`).join(' · ') : "Dashed = the agent's suggestion · click to decide";
     const row = r => `<div class="fbr-r${r.you ? ' you' : ''}">
-        <div><div class="th">${esc(r.theme)}</div><div class="ex">"${esc(r.ex)}"</div>${r.note ? `<div class="nt">Note: ${esc(r.note)}</div>` : ''}<span class="src">${esc(r.src)}</span>${r.you ? '<span class="src me">You · this browser</span>' : ''}</div>
+        <div><div class="th">${esc(r.theme)}</div><div class="ex">"${esc(r.ex)}"</div>${r.note ? `<div class="nt">Note: ${esc(r.note)}</div>` : ''}${r.rec ? `<div class="nt">${esc(r.rec)}</div>` : ''}<span class="src">${esc(r.src)}</span>${r.you ? '<span class="src me">You · this browser</span>' : ''}</div>
         <div class="cnt"><span>Count</span>${r.n}</div>
         <div><span class="dg ${r.dg}">${esc(r.dl)}</span><div class="sug">${esc(r.sug)}</div></div>
         <div class="dec">${DEC.map(([k, l]) => `<button type="button" data-dec="${k}" data-key="${esc(r.key)}"${r.ai === k ? ' class="ai"' : ''} aria-pressed="${dec[r.key] === k}">${l}</button>`).join('')}</div></div>`;
     return `<div class="ppa-card fbr">
       <div class="fbr-loop">${[['1 · Log', 'Every answer, 👍/👎 and reason'], ['2 · Weekly pull', "All of the week's turns"], ['3 · Agent drafts', 'Prioritises, summarises, suggests a fix', 'ai'], ['4 · Owner decides', "Fix now · Later · Won't fix · Needs a definition", 'you'], ['5 · Fix + test', 'Each fix becomes a regression test'], ['6 · Tell the user', '"The thing you flagged is fixed"']].map(([h, t, c]) => `<div${c ? ` class="${c}"` : ''}><b>${h}</b>${t}</div>`).join('')}</div>
-      <div class="ins-mast"><span>Feedback review · ${esc(wlab(TW))} · QA Agent's chatbot · synthetic week</span><span>${rows.length} themes${mine.length ? ` · ${mine.length} from you` : ''}</span></div>
+      <div class="ins-mast"><span>Feedback review · ${esc(wlab(TW))} · QA Agent · Ask the agent · synthetic week</span><span>${rows.length} themes${mine.length ? ` · ${mine.length} from you` : ''}</span></div>
       <h2 class="fbr-hl">${esc(R.headline)}</h2>
-      <p class="fbr-p">${R.text}</p>
-      <div class="fbr-sig">${tile('Questions', qn, `${dq >= 0 ? '+' : M}${Math.abs(dq)} vs last week${you(nd)}`)}${tile('👍 / 👎', `${s2.up + up} / ${s2.dn + dn}`, `1 in ${Math.round(qn / (s2.up + up + s2.dn + dn))} answers rated${you(up + dn)}`)}${tile('Rephrased', s2.reph, 'asked again in new words')}${tile('"Not in this data"', s2.nodata + nd, 'out of scope' + you(nd))}${tile('Checker flags', s2.flags, 'withheld before shown')}</div>
+      <p class="fbr-p">${text}</p>
+      <div class="fbr-sig">${tile('Questions', qn, `${dq >= 0 ? '+' : M}${Math.abs(dq)} vs last week${you(F.turns.length)}`)}${tile('👍 / 👎', `${SEED.up + up} / ${sigSum('dn') + dn}`, `${rated ? `1 in ${Math.max(1, Math.round(qn / rated))} answers rated` : 'no answers rated'}${you(up + dn)}`)}${tile('Rephrased', sigSum('reph'), 'asked again in new words')}${tile('"Not in this data"', sigSum('nodata') + nd, 'out of scope' + you(nd))}${tile('Checker flags', SEED.withheld, 'withheld before shown')}</div>
       <div class="fbr-h"><span>Ranked by the agent · you decide each row</span><span class="tally">${esc(tally)}</span></div>
       <div class="fbr-t"><div class="fbr-r hd"><div>Theme</div><div>Count</div><div>Diagnosis · suggested fix</div><div>Decision</div></div>${rows.map(row).join('')}</div>
       <div class="fbr-h"><span>Fixed last week · loop closed</span></div>
@@ -483,7 +570,7 @@
   function renderModal() {
     const ins = st.modal === 'ins';
     $('#qa-modal-title').textContent = ins ? 'Weekly QA report' : 'Feedback review';
-    $('.ins-ttl small').textContent = ins ? `Sent every Monday · ${wlab(TW)} · from 7 nightly runs` : `Drafted by the agent every Monday · ${wlab(TW)} · you decide`;
+    $('.ins-ttl small').textContent = ins ? `Sent every Monday · ${wlab(TW)} · from 7 nightly runs` : `Feedback on this QA agent's chat answers · drafted every Monday · ${wlab(TW)} · you decide`;
     $('.ins-ttl .spk').textContent = ins ? '✦' : '↺';
     $('.ins-scroll').innerHTML = ins ? report() : feedbackReview();
   }
@@ -505,34 +592,38 @@
     $('[data-f=ag]').value = st.ag;
     $('.ppa-ctx').innerHTML = `Showing <b>${esc(wlab(TW))}</b> · 7 nightly runs · ${esc(st.ag === 'all' ? 'all agents' : AG(st.ag).name)} · ${TYN[st.ty]} · vs last week (${esc(wlab(LW))})`;
     $('.ppa-panel').innerHTML = st.tab === 'overview' ? overviewTab(V) : st.tab === 'flagged' ? flaggedTab(V) : trendsTab(V);
-    if (!asked.size) log.innerHTML = sugHTML(); else { const h = log.querySelector('.hint'); if (h) h.outerHTML = sugHTML().split('</div>')[0] + '</div>'; }
+    if (saved == null) syncLog(); else markRow();   // during an agent run the panel shows the run; the dashboard keeps the case marked
   }
+  function syncLog() { if (!asked.size) log.innerHTML = sugHTML(); else { const h = log.querySelector('.hint'); if (h) h.outerHTML = sugHTML().split('</div>')[0] + '</div>'; } }
   function openChat() { chat.classList.add('open'); chat.removeAttribute('aria-hidden'); $('.ppa-input input').focus(); }
   function setVerdict(id, v) { const d = readLS(VERD, {}); if (v) d[id] = v; else delete d[id]; writeLS(VERD, d); render(); }
   root.addEventListener('click', e => {
     const t = e.target;
     const tab = t.closest('[role=tab]'); if (tab) { st.tab = tab.dataset.tab; return render(); }
     const tyb = t.closest('[data-ty]'); if (tyb) { st.ty = tyb.dataset.ty; return render(); }
-    const go = t.closest('[data-go]'); if (go) { st.tab = 'flagged'; st.sel = go.dataset.go; render(); const d = $('.detail'); if (d) d.scrollIntoView({ block: 'nearest' }); return; }
+    const go = t.closest('[data-go]'); if (go) return investigate(go.dataset.go);
+    if (t.closest('[data-leave]')) return leaveRun();
+    const dec = t.closest('.ppa-rec [data-dec]');
+    if (dec) { const ok = dec.dataset.dec === 'ok', x = D.causes.find(c => c.id === dec.dataset.id); setVerdict(dec.dataset.id, ok ? 'y' : 'n'); dec.closest('.btns').outerHTML = `<div class="done ${ok ? 'draft' : 'muted'}">${esc(ok ? x.fixY : x.fixN)}</div>`; return; }
     const row = t.closest('[data-sel]'); if (row) { st.sel = row.dataset.sel; return render(); }
     const vb = t.closest('[data-v]'); if (vb && !vb.disabled) return setVerdict(vb.dataset.id, vb.dataset.v);
     const ub = t.closest('[data-undo]'); if (ub) return setVerdict(ub.dataset.undo, null);
-    if (t.closest('[data-ask]')) return openChat();
-    if (t.closest('.ppa-x')) { chat.classList.remove('open'); chat.setAttribute('aria-hidden', 'true'); $('[data-ask]').focus(); return; }
+    if (t.closest('[data-ask]')) { leaveRun(); return openChat(); }
+    if (t.closest('.ppa-x')) { chat.classList.remove('open'); chat.setAttribute('aria-hidden', 'true'); restore(); $('[data-ask]').focus(); return; }
     if (t.closest('[data-reset]')) return resetChat();
     const q = t.closest('.ppa-sugtop [data-i]'); if (q && !q.disabled) return ask(+q.dataset.i);
     const r = t.closest('[data-rate]');
     if (r) {
       const box = r.closest('.ppa-fb'), i = +box.dataset.fq;
-      if (r.dataset.rate === 'up') { logFb({ kind: 'up', q: QS[i].q }); box.outerHTML = fbThanks(); return; }
+      if (r.dataset.rate === 'up') { const f = box.nextElementSibling; if (f && f.classList.contains('ppa-fbf')) f.remove(); logFb({ kind: 'up', turn: box.dataset.turn, q: QS[i].q }); box.outerHTML = fbThanks(); return; }
       box.querySelectorAll('[data-rate]').forEach(x => x.classList.toggle('on', x === r));
-      if (!(box.nextElementSibling && box.nextElementSibling.classList.contains('ppa-fbf'))) box.insertAdjacentHTML('afterend', fbForm(i));
+      if (!(box.nextElementSibling && box.nextElementSibling.classList.contains('ppa-fbf'))) box.insertAdjacentHTML('afterend', fbForm(i, box.dataset.turn));
       return;
     }
     const chp = t.closest('.ppa-fbf [data-reason]');
     if (chp) { chp.parentElement.querySelectorAll('[data-reason]').forEach(x => x.setAttribute('aria-pressed', x === chp)); chp.closest('.ppa-fbf').querySelector('.send').disabled = false; return; }
     const sb = t.closest('.ppa-fbf .send');
-    if (sb) { const f = sb.closest('.ppa-fbf'), i = +f.dataset.fq; logFb({ kind: 'down', q: QS[i].q, reason: f.querySelector('[data-reason][aria-pressed=true]').dataset.reason, note: f.querySelector('textarea').value.trim().slice(0, 200) }); f.previousElementSibling.remove(); f.outerHTML = fbThanks(); return; }
+    if (sb) { const f = sb.closest('.ppa-fbf'), i = +f.dataset.fq; logFb({ kind: 'down', turn: f.dataset.turn, q: QS[i].q, reason: f.querySelector('[data-reason][aria-pressed=true]').dataset.reason, note: f.querySelector('textarea').value.trim().slice(0, 200) }); f.previousElementSibling.remove(); f.outerHTML = fbThanks(); return; }
     if (t.closest('[data-fbr]') || t.closest('[data-fbr-open]')) return openModal('fbr', $('[data-fbr-open]'));
     if (t.closest('[data-ins]')) return openModal('ins', t.closest('[data-ins]'));
     if (t.closest('[data-notes]')) { e.stopPropagation(); $('.ppa-notes').classList.toggle('open'); return; }
@@ -550,7 +641,7 @@
     D = d; TW = D.meta.tw; LW = D.meta.lw;
     $('[data-f=ag]').innerHTML = '<option value="all">All agents</option>' + D.agents.map(a => `<option value="${a.k}">${esc(a.name)}</option>`).join('');
     resetChat(); render();
-    window.__qa = { st, view, answer, report, render, QS, causes, sum };
+    window.__qa = { st, view, answer, report, render, QS, causes, sum, investigate, reset: id => { const d = readLS(VERD, {}); delete d[id]; writeLS(VERD, d); } };
     document.dispatchEvent(new CustomEvent('qa:ready'));
   }).catch(err => {
     $('.ppa-panel').innerHTML = '<div class="ppa-card">Could not load the demo data. If you opened this file directly, serve the folder instead (for example <code>python3 -m http.server</code>).</div>';

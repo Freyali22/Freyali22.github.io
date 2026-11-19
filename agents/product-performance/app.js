@@ -101,7 +101,7 @@
     const fl = f => FIELD[String(f)] || String(f);
     const what = {
       sales: 'net sales', chg: fl(sp.of) + ' vs LY', delta: 'sales change',
-      wos: 'weeks of supply', avg_units: 'avg weekly units', reorder: 'units to ' + sp.target + ' wks', excess: 'units above ' + sp.target + ' wks',
+      wos: 'weeks of supply', avg_units: 'avg weekly units', reorder: 'units to the ' + sp.target + '-wk target', excess: 'units above the ' + sp.target + (sp.target === C.thresholds.overstock_weeks ? '-wk ceiling' : '-wk target'),
       sum: fl(sp.of), contrib: fl(sp.of || 'sales') + ' contribution (pts of LY sales)', aur: 'avg unit retail' + (sp.y === 'ly' ? ' (LY)' : ''), aur_chg: 'avg unit retail vs LY',
       mix: 'share of ' + fl(sp.of || 'sales'), share: sp.num === 'sales_new' ? 'new-customer share of sales' : (sp.num === 'genz' ? 'Gen Z' : 'new customers') + ' ÷ ' + (sp.den === 'new' ? 'new customers' : 'orders') + (sp.y === 'ly' ? ' (LY)' : ''),
     }[sp.m];
@@ -270,7 +270,7 @@
       </section>`;
   }
 
-  // ---- Customers: new vs returning, Gen Z, gateway products
+  // ---- Customers: new customers vs orders from returning customers (ret = orders − new), Gen Z, gateway products
   const GENS = [['Gen Z', 4], ['Millennial', 9], ['Gen X', 10], ['Boomer', 11]]; // index into view() metric arrays
   function custStats(v) {
     const T = v.ty, L = v.ly, p = st.p;
@@ -297,9 +297,9 @@
     if (c.gzChg < 0) out.push({ lv: 'warn', tag: 'Gen Z falling', name: 'Gen Z new customers', txt: `${fmt(c.gzChg, 'pct_signed')} vs last year` });
     if (!st.ch) c.chs.forEach(r => {
       if (r.chg <= -th.flag_change_pct) out.push({ lv: 'warn', tag: 'New customers falling', name: r.ch, txt: `New customers ${fmt(r.chg, 'pct_signed')} vs last year · ${fmt(r.mix, 'pct')} of all new customers` });
-      if (r.old <= -2 * th.flag_change_pct) out.push({ lv: 'warn', tag: 'Older customers leaving', name: r.ch, txt: `Gen X + Boomer orders ${fmt(r.old, 'pct_signed')} vs last year` });
+      if (r.old <= -2 * th.flag_change_pct) out.push({ lv: 'warn', tag: 'Older customers buying less', name: r.ch, txt: `Gen X + Boomer orders ${fmt(r.old, 'pct_signed')} vs last year` });
     });
-    if (c.retChg < -3 && c.newChg > 0) out.push({ lv: 'info', tag: 'Watch', name: 'Returning customers', txt: `${fmt(c.retChg, 'pct_signed')} vs last year while new customers grow ${fmt(c.newChg, 'pct_signed')}` });
+    if (c.retChg < -3 && c.newChg > 0) out.push({ lv: 'info', tag: 'Watch', name: 'Orders from returning customers', txt: `${fmt(c.retChg, 'pct_signed')} vs last year while new customers grow ${fmt(c.newChg, 'pct_signed')}` });
     return out;
   }
   function customers(v) {
@@ -309,7 +309,7 @@
     const byMix = c.chs.slice().sort((a, b) => b.mix - a.mix), byGz = c.chs.slice().sort((a, b) => b.gz - a.gz);
     const gzSpread = byGz[0].gz - byGz[byGz.length - 1].gz;
     const rows = [
-      ['New customers', `${fmt(T[3], 'int')} new customers, ${fmt(c.newChg, 'pct_signed')} vs last year; returning customers ${fmt(c.retChg, 'pct_signed')}.`],
+      ['New customers', `${fmt(T[3], 'int')} new customers, ${fmt(c.newChg, 'pct_signed')} vs last year; orders from returning customers ${fmt(c.retChg, 'pct_signed')}.`],
       ['Gen Z', `Gen Z new customers ${fmt(c.gzChg, 'pct_signed')} — ${gzWord}. Now ${fmt(c.gShare, 'pct')} of new customers (last year ${fmt(c.gShareLy, 'pct')}).`],
       ['Gateway product', !top ? 'Not enough new customers in this view.' : top.idx >= 120
         ? `${esc(top.f.meta.name)}: ${fmt(top.share, 'pct')} of its new customers are Gen Z, index ${Math.round(top.idx)} vs the brand.`
@@ -317,7 +317,7 @@
       ['Where from', st.ch ? `Showing ${esc(st.ch)} only — clear the channel filter to compare channels.`
         : c.chs.map(r => `${esc(r.ch)} ${fmt(r.chg, 'pct_signed')}`).join(' · ') + ` new customers vs last year; ${esc(byMix[0].ch)} brings ${fmt(byMix[0].mix, 'pct')} of them.` +
           (gzSpread >= 8 ? ` Gen Z share of new: ${esc(byGz[0].ch)} ${fmt(byGz[0].gz, 'pct')} vs ${esc(byGz[byGz.length - 1].ch)} ${fmt(byGz[byGz.length - 1].gz, 'pct')}.` : '')],
-      ['Spend', `New customers spend ${fmt(c.aovN, 'price')} per order vs ${fmt(c.aovR, 'price')} for returning.`],
+      ['Spend', `New customers spend ${fmt(c.aovN, 'price')} per order vs ${fmt(c.aovR, 'price')} for returning customers' orders.`],
     ];
     const gate = c.gate.slice(0, 6), mxI = Math.max(...gate.map(r => r.idx), 120);
     const tr = gate.map((r, i) => `<tr><td>${famTag(r.f)}</td><td class="n">${fmt(r.gz, 'int')}</td><td class="n">${fmt(r.share, 'pct')}</td>
@@ -399,7 +399,7 @@
           <div class="ppa-chart" data-chart="wos"></div>
           <div class="ppa-legend"><span><i class="sq" style="background:var(--crit)"></i>Under ${th.low_stock_weeks} wks</span><span><i class="sq" style="background:var(--warn)"></i>Over ${th.overstock_weeks} wks</span><span><i class="sq" style="background:var(--neutral)"></i>In range</span></div>
         </section>
-        <section class="ppa-card"><h3>What to do</h3><div class="sub">Reorder quantity brings a family back to 8 weeks of supply.</div>
+        <section class="ppa-card"><h3>What to do</h3><div class="sub">Reorder = indicative gap to 8 weeks of supply, before open POs and inbound stock.</div>
           <div class="ppa-tw"><table><thead><tr><th>Family</th><th class="n">On hand</th><th class="n">Units/wk</th><th class="n">Wks</th><th class="n">LY</th><th>Action</th></tr></thead><tbody>${tr}</tbody></table></div>
         </section>
       </div>`;
@@ -524,9 +524,9 @@
   // all call these, live in the browser.
   const TOOL_DOCS = [
     ['get_sales', 'Sales', 'This year vs last year, for any period or channel, split by product family, category or channel'],
-    ['get_trend', 'Weekly trend', 'Week-by-week sales for one product family, this year vs last year'],
+    ['get_trend', 'Weekly trend', 'Week-by-week sales (or units) for one product family, this year vs last year'],
     ['get_inventory', 'Inventory', 'Units on hand, weekly sales rate and weeks of supply, against the stock thresholds'],
-    ['get_customers', 'Customers', 'New vs returning customers and the Gen Z share — for one family, or split by generation, channel or family'],
+    ['get_customers', 'Customers', 'New customers vs orders from returning customers, and the Gen Z share — for one family, or split by generation, channel or family'],
   ];
   const famName = id => D.families.find(f => f.id === id).name;
   const famIdx = id => D.families.findIndex(f => f.id === id);
@@ -570,13 +570,13 @@
       return { data: rows, text: rows.length <= 4 ? rows.map(r => `${f(r)} ${fmt(r.mix, 'pct')} of sales`).join(' · ') : `${rows.length} ${unit[rows.length === 1 ? 0 : 1]} · top ${f(rows[0])} · bottom ${f(rows[rows.length - 1])}` };
     },
     get_trend(a) {
-      const n = D.weeks.length, k = a.weeks || 4, sp = { fam: a.family, ch: a.channel };
+      const n = D.weeks.length, k = a.weeks || 4, sp = { fam: a.family, ch: a.channel }, u = a.measure === 'units', field = u ? 'units' : 'sales';
       const rows = [];
       for (let w = n - k; w < n; w++) {
-        const ty = weekTotal('sales', 0, w, sp), ly = weekTotal('sales', 1, w, sp);
+        const ty = weekTotal(field, 0, w, sp), ly = weekTotal(field, 1, w, sp);
         rows.push({ wk: D.weeks[w].wk, ty, ly, chg: pc(ty, ly) });
       }
-      return { data: rows, text: rows.map(r => `W${r.wk} ${fmt(r.ty, 'money')}${r.chg == null ? '' : ' ' + fmt(r.chg, 'pct_signed')}`).join(' · ') };
+      return { data: rows, text: rows.map(r => `W${r.wk} ${u ? fmt(r.ty, 'int') + ' units' : fmt(r.ty, 'money')}${r.chg == null ? '' : ' ' + fmt(r.chg, 'pct_signed')}`).join(' · ') };
     },
     get_inventory(a) {
       const th = C.thresholds, last = D.weeks.length - 1;
@@ -635,7 +635,7 @@
     const who = a.family ? famName(a.family) : null, per = PER[a.period || 'latest'];
     if (name === 'get_sales') return ['Sales' + (a.group_by ? ' by ' + (a.group_by === 'family' ? 'product family' : a.group_by) : ''),
       who, a.category, a.channel, a.exclude_new ? 'excluding new products' : null, a.exclude_category ? 'excluding ' + a.exclude_category : null, per].filter(Boolean).join(' · ');
-    if (name === 'get_trend') return `Weekly trend · ${who} · last ${a.weeks || 4} weeks` + (a.channel ? ' · ' + a.channel : '');
+    if (name === 'get_trend') return `Weekly ${a.measure === 'units' ? 'units' : 'trend'} · ${who} · last ${a.weeks || 4} weeks` + (a.channel ? ' · ' + a.channel : '');
     if (name === 'get_inventory') return 'Inventory · ' + (who || 'all families');
     if (name === 'get_customers') return 'Customers' + (a.by ? ' by ' + (a.by === 'family' ? 'product family' : a.by) : ' · ' + (who || 'all families')) + (a.channel ? ' · ' + a.channel : '') + ' · ' + per;
     return name;
@@ -688,6 +688,7 @@
   function setMode(m, title, sub) {
     if (mode === 'chat' && m !== 'chat') chatHTML = log.innerHTML;
     mode = m; chatTitle.textContent = title; chatSub.textContent = sub;
+    chat.classList.toggle('run', m === 'run');   // an agent run gets a wider panel
     $('.ppa-input').hidden = m !== 'chat';
     if (m === 'chat') { if (chatHTML) { log.innerHTML = chatHTML; sug.hidden = true; sug.innerHTML = ''; syncSug(); } else resetChat(); }
     else sug.hidden = false;
@@ -712,6 +713,7 @@
     item.checks.forEach(c => { html = html.replace(esc(c.text), `<mark title="${esc(describe(c.spec))}">${esc(c.text)}</mark>`); });
     a.innerHTML = html + qaBlock(item.checks.map(c => ({ ...c, text: item.a.includes(c.text) ? c.text : '∅' }))) + fbBar(i);
     item.asked = true; busy = false;
+    logFb({ kind: 'ask', i, q: item.q }, true); // every answered question is a turn in the weekly review
     syncSug();
     log.scrollTop = log.scrollHeight;
   }
@@ -720,6 +722,16 @@
   // Each step picks one tool from the menu based on the previous result. Here a fixed policy picks;
   // a fixed policy picks from the tool menu. Max MAX steps, then a human decides.
   const MAX = 6;
+  // pace: the step title and the tool call show first, then the result and the decision, then a beat to read it
+  const PACE = matchMedia('(prefers-reduced-motion: reduce)').matches ? { call: 300, read: 600 } : { call: 400, read: 600 };
+  async function stepStart(log, n, max, why, tool) {
+    log.insertAdjacentHTML('beforeend', `<div class="ppa-step working"><div class="sn">Step ${n} of ${max}</div><div class="why">${esc(why)}</div><div class="wk">Calling ${esc(tool)}<i>…</i></div></div>`);
+    const box = log.lastElementChild;
+    log.scrollTo({ top: box.offsetTop - 12, behavior: 'smooth' });
+    await wait(PACE.call);
+    return box;
+  }
+  function stepEnd(box, html) { box.querySelector('.wk').remove(); box.insertAdjacentHTML('beforeend', html); box.classList.remove('working'); }
   async function investigate(i, kind) {
     if (busy) return; busy = true;
     const f = D.families[i], id = f.id, th = C.thresholds, ch = st.ch || undefined, p = st.p;
@@ -727,16 +739,19 @@
     sug.innerHTML = '<button type="button" class="ppa-back">← Back to questions</button>' + toolsList();
     sug.querySelector('.ppa-back').addEventListener('click', () => { if (!busy) setMode('chat', 'Ask the agent', 'Tool calls run live · every number re-checked'); });
     openDrawer();
-    log.innerHTML = `<div class="hint">The agent investigates one alert. Each step chooses the next tool from what the last result showed, and stops after ${MAX} steps at most. A fixed policy makes those choices from the tool menu, so you see the same steps every time.</div>`;
+    const ask = kind === 'crit' ? `${esc(f.name)} is under the ${th.low_stock_weeks}-week stock floor. Is the demand real, and how much should we reorder?`
+      : kind === 'warn' ? `${esc(f.name)} is over the ${th.overstock_weeks}-week stock ceiling. Is it still selling, and what should we do with the excess?`
+        : `${esc(f.name)} sales are down. One bad week or a trend, and does it need action?`;
+    log.innerHTML = `<div class="ppa-biz"><div class="sn">The question</div><p>${ask}</p></div><div class="hint">The agent answers it step by step. Each step picks the next tool from what the last result showed, at most ${MAX} steps; a fixed policy makes the picks, so every run is the same.</div>`;
     let n = 0;
     const checks = [];
     const step = async (why, name, args, decide) => {
       n++;
       const r = name ? TOOLS[name](args) : null;
       const d = decide(r && r.data);
-      log.insertAdjacentHTML('beforeend', `<div class="ppa-step"><div class="sn">Step ${n} of ${MAX}</div><div class="why">${esc(why)}</div>${r ? toolLine(name, args, r) : card('Calculation', '', d.calc, ' calc')}<div class="dec">${d.text}</div></div>`);
-      log.scrollTop = log.scrollHeight;
-      await wait(750);
+      const box = await stepStart(log, n, MAX, why, name ? callStr(name, args) : 'calculation');
+      stepEnd(box, (r ? toolLine(name, args, r) : card('Calculation', '', d.calc, ' calc')) + `<div class="dec">${d.text}</div>`);
+      await wait(PACE.read);
       return d;
     };
     const opt = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
@@ -744,25 +759,28 @@
     if (kind === 'crit') {
       const inv = await step('Confirm the stock problem.', 'get_inventory', { family: id }, d => ({ d, text: `${fmt(d.wos, 'weeks')} weeks is under the ${th.low_stock_weeks}-week floor. Next: is the demand real, or a one-week spike?` }));
       checks.push({ spec: { m: 'wos', fam: id }, fmt: 'weeks', text: fmt(inv.d.wos, 'weeks') });
-      const tr = await step('Check the trend before ordering more.', 'get_trend', opt({ family: id, weeks: 4, channel: ch }), d => {
-        const last = d[d.length - 1].ty, prev = (d[0].ty + d[1].ty + d[2].ty) / 3, x = pc(last, prev);
-        const s = x >= -5 ? 'steady or rising — not a spike' : x >= -20 ? 'a little softer' : 'cooling fast';
-        return { cooling: x < -20, text: `Last week ${fmt(last, 'money')} vs a ${fmt(prev, 'money')} average for the three weeks before (${fmt(x, 'pct_signed')}): ${s}. Next: who is buying it?` };
+      // unit demand, not revenue: is the latest week an outlier against the three before it, in either direction?
+      const BAND = 25;
+      const tr = await step('Check unit demand before ordering more.', 'get_trend', opt({ family: id, weeks: 4, channel: ch, measure: 'units' }), d => {
+        const last = d[d.length - 1].ty, prev = (d[0].ty + d[1].ty + d[2].ty) / 3, x = pc(last, prev), every = d.every(r => r.ty > 0);
+        const s = x > BAND ? `more than ${BAND}% above them: possibly a one-week spike` : x < -BAND ? `more than ${BAND}% below them: demand may be cooling`
+          : `within ±${BAND}%, so no one-week spike or drop`;
+        return { outlier: Math.abs(x) > BAND, spike: x > BAND, text: `Last week ${fmt(last, 'int')} units vs a ${fmt(prev, 'int')} average for the three weeks before (${fmt(x, 'pct_signed')}) — ${s}${every ? '; it sold in all 4 weeks' : ''}. Next: who is buying it?` };
       });
-      const cu = await step('Check who drives the demand.', 'get_customers', { family: id, period: 'l4' }, d => {
+      await step('Check who drives the demand.', 'get_customers', { family: id, period: 'l4' }, d => {
         const lift = d.nw - d.brand.nw;
-        return { text: lift > 10 ? `${fmt(d.nw, 'pct')} of orders come from new customers, ${fmt(lift, 'pts').replace(' pts', '')} points above the brand. It is pulling in new people, so demand looks durable.` : `New-customer share is close to the brand average (${fmt(d.nw, 'pct')} vs ${fmt(d.brand.nw, 'pct')}): demand comes from existing customers.` };
+        return { text: lift > 10 ? `${fmt(d.nw, 'pct')} of orders come from new customers, ${fmt(lift, 'pts').replace(' pts', '')} points above the brand: the demand is coming from new buyers, not only returning ones.` : `New-customer share is close to the brand average (${fmt(d.nw, 'pct')} vs ${fmt(d.brand.nw, 'pct')}): most orders come from returning customers.` };
       });
-      await step('See which channel the stock should go to.', 'get_sales', { family: id, group_by: 'channel', period: 'l4' }, d => {
+      await step('See which channel sells the most.', 'get_sales', { family: id, group_by: 'channel', period: 'l4' }, d => {
         const tot = d.reduce((s, r) => s + r.ty, 0), top = d.slice().sort((a, b) => b.ty - a.ty)[0];
-        return { text: `${top.key} sells the most: ${fmt((top.ty / tot) * 100, 'pct')} of its last-4-week sales.` };
+        return { text: `${top.key} sells the most: ${fmt((top.ty / tot) * 100, 'pct')} of its last-4-week sales. Channel stock isn't in this data, so allocation stays with the buyer.` };
       });
-      const target = tr.cooling ? 6 : 8;
+      const target = tr.outlier ? 6 : 8;
       const need = Math.floor(Math.max(0, target * inv.d.avg - inv.d.oh) / 10 + 0.5) * 10;
-      await step(`Size the order to ${target} weeks of cover${tr.cooling ? ' (shorter, because demand is cooling)' : ''}.`, null, null, () => ({
-        calc: `${target} × ${fmt(inv.d.avg, 'int')} units/wk − ${fmt(inv.d.oh, 'int')} on hand ≈ ${fmt(need, 'int')}`, text: `About ${fmt(need, 'int')} units.` }));
+      await step(`Size the stock gap to the ${target}-week target${tr.outlier ? ` (shorter, because ${tr.spike ? 'the latest week may be a spike' : 'demand may be cooling'})` : ''}.`, null, null, () => ({
+        calc: `${target} × ${fmt(inv.d.avg, 'int')} units/wk − ${fmt(inv.d.oh, 'int')} on hand ≈ ${fmt(need, 'int')}`, text: `About ${fmt(need, 'int')} units short of the ${target}-week target.` }));
       checks.push({ spec: { m: 'reorder', fam: id, target }, fmt: 'int', text: fmt(need, 'int') }, { spec: { m: 'avg_units', fam: id }, fmt: 'int', text: fmt(inv.d.avg, 'int') });
-      rec = `Reorder about <b>${fmt(need, 'int')} units</b> of ${esc(f.name)} to get back to ${target} weeks of supply.`;
+      rec = `Indicative stock gap: about <b>${fmt(need, 'int')} units</b> to get ${esc(f.name)} back to ${target} weeks of supply. Before ordering, the buyer confirms open POs and inbound stock, supplier lead time and the size mix.`;
     } else if (kind === 'warn') {
       const inv = await step('Confirm the stock problem.', 'get_inventory', { family: id }, d => ({ d, text: `${fmt(d.wos, 'weeks')} weeks is over the ${th.overstock_weeks}-week ceiling. Next: is it still selling?` }));
       checks.push({ spec: { m: 'wos', fam: id }, fmt: 'weeks', text: fmt(inv.d.wos, 'weeks') });
@@ -774,14 +792,19 @@
       if (tr.falling) {
         rebalance = (await step('Find where the decline is.', 'get_sales', { family: id, group_by: 'channel', period: 'l4' }, d => {
           const best = d[0], worst = d[d.length - 1], spread = (best.chg || 0) - (worst.chg || 0);
-          return { to: spread > 15 && best.chg > 0 ? best.key : null, text: spread > 15 && best.chg > 0 ? `${worst.key} is ${fmt(worst.chg, 'pct_signed')} but ${best.key} is ${fmt(best.chg, 'pct_signed')}: part of the stock can move there.` : `Down in every channel (${d.map(r => `${r.key} ${fmt(r.chg, 'pct_signed')}`).join(', ')}): it is not a channel problem.` };
+          return { to: spread > 15 && best.chg > 0 ? best.key : null, text: spread > 15 && best.chg > 0 ? `${worst.key} is ${fmt(worst.chg, 'pct_signed')} but ${best.key} is ${fmt(best.chg, 'pct_signed')}: part of the stock can move there.` : `${d.every(r => r.chg != null && r.chg < 0) ? 'Down in every channel' : 'No channel stands out'} (${d.map(r => `${r.key} ${fmt(r.chg, 'pct_signed')}`).join(', ')}): it is not a channel problem.` };
         })).to;
       }
-      const excess = Math.floor(Math.max(0, inv.d.oh - th.overstock_weeks * inv.d.avg) / 10 + 0.5) * 10;
-      await step('Size the excess.', null, null, () => ({ calc: `${fmt(inv.d.oh, 'int')} on hand − ${th.overstock_weeks} wks × ${fmt(inv.d.avg, 'int')} units/wk ≈ ${fmt(excess, 'int')}`, text: `About ${fmt(excess, 'int')} units above the ceiling.` }));
+      // two different stock measures, named apart: above the ceiling (back in range) vs above the 8-week target (back to healthy)
+      const sz = t => Math.floor(Math.max(0, inv.d.oh - t * inv.d.avg) / 10 + 0.5) * 10;
+      const excess = sz(th.overstock_weeks), to8 = sz(8);
+      await step('Size the excess.', null, null, () => ({ calc: `${fmt(inv.d.oh, 'int')} on hand − ${th.overstock_weeks} wks × ${fmt(inv.d.avg, 'int')} units/wk ≈ ${fmt(excess, 'int')} · against an 8-week target ≈ ${fmt(to8, 'int')}`,
+        text: `About ${fmt(excess, 'int')} units above the ${th.overstock_weeks}-week ceiling, and ${fmt(to8, 'int')} above the 8-week target.` }));
+      checks.push({ spec: { m: 'excess', fam: id, target: th.overstock_weeks }, fmt: 'int', text: fmt(excess, 'int') }, { spec: { m: 'excess', fam: id, target: 8 }, fmt: 'int', text: fmt(to8, 'int') });
+      const depth = 'markdown depth to be set with margin and sell-through data';
       rec = !tr.falling ? `Hold the next delivery of ${esc(f.name)}; no markdown yet — re-check in two weeks.`
-        : rebalance ? `Hold the next delivery and move stock to <b>${esc(rebalance)}</b>; plan a markdown on what is left of the <b>${fmt(excess, 'int')} excess units</b>.`
-          : `Hold the next delivery of ${esc(f.name)} and plan a markdown on about <b>${fmt(excess, 'int')} units</b>.`;
+        : rebalance ? `Hold the next delivery and move stock to <b>${esc(rebalance)}</b>; plan to clear what is left of the <b>${fmt(excess, 'int')} units above the ${th.overstock_weeks}-week ceiling</b> — ${depth}.`
+          : `Hold the next delivery of ${esc(f.name)} and plan to clear about <b>${fmt(excess, 'int')} units above the ${th.overstock_weeks}-week ceiling</b> — ${depth}.`;
     } else {
       const sl = await step('Find where the drop is.', 'get_sales', opt({ family: id, group_by: 'channel', period: p }), d => ({ text: `Weakest channel: ${d[d.length - 1].key} ${fmt(d[d.length - 1].chg, 'pct_signed')}. Next: one bad week, or a trend?` }));
       const tr = await step('Check whether it is one week or a trend.', 'get_trend', opt({ family: id, weeks: 4, channel: ch }), d => {
@@ -792,12 +815,12 @@
       rec = tr.sustained ? `Flag ${esc(f.name)} to the buyer: a sustained decline, worth a look at assortment and the next buy.` : `No action this week; the agent re-checks ${esc(f.name)} next week.`;
       void sl;
     }
-    log.insertAdjacentHTML('beforeend', `<div class="ppa-rec"><div class="sn">Recommendation · ${n} of ${MAX} steps used</div><p>${rec}</p>${checks.length ? qaBlock(checks, 'Self-check') : ''}<div class="btns"><button type="button" class="ppa-btn dark" data-dec="ok">Approve</button><button type="button" class="ppa-btn" data-dec="no">Dismiss</button></div></div>`);
+    log.insertAdjacentHTML('beforeend', `<div class="ppa-rec"><div class="sn">Recommendation · ${n} of ${MAX} steps used</div><p>${rec}</p>${checks.length ? qaBlock(checks, 'Self-check') : ''}<div class="own"><span><b>Owner</b> Buyer</span><span><b>Next</b> ${kind === 'crit' ? 'confirm open POs, lead time and size mix, then raise the order' : kind === 'warn' ? 'hold the next delivery, then re-check in two weeks' : 're-check next week'}</span></div><div class="btns"><button type="button" class="ppa-btn dark" data-dec="ok">Add to action plan</button><button type="button" class="ppa-btn" data-dec="no">Dismiss</button></div></div>`);
     const box = log.lastElementChild;
+    log.scrollTo({ top: box.offsetTop - 12, behavior: 'smooth' });
     box.querySelectorAll('[data-dec]').forEach(b => b.addEventListener('click', () => {
-      box.querySelector('.btns').outerHTML = b.dataset.dec === 'ok' ? '<div class="done">✓ Approved — added to this week\'s action list. (Demo: nothing is sent.)</div>' : '<div class="done muted">Dismissed — the agent will look again next week.</div>';
+      box.querySelector('.btns').outerHTML = b.dataset.dec === 'ok' ? '<div class="done">✓ Added to this week\'s action plan · owner: the buyer. (Demo: nothing is sent.)</div>' : '<div class="done muted">Dismissed — the agent will look again next week.</div>';
     }));
-    log.scrollTop = log.scrollHeight;
     busy = false;
   }
   // Clear: wipe the conversation (or an agent run) and start again from the suggested questions
@@ -872,10 +895,10 @@
   function readLS(k, dflt) { try { return JSON.parse(localStorage.getItem(k)) ?? dflt; } catch (e) { return dflt; } }
   function writeLS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode: feedback just isn't kept */ } }
   const myFb = () => readLS(FB_KEY, []).filter(r => r.region === st.region);
-  function logFb(rec) {
+  function logFb(rec, quiet) { // quiet: an answered question is logged as a turn without pulsing the review link
     const all = readLS(FB_KEY, []);
     all.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), region: st.region, ...rec });
-    writeLS(FB_KEY, all); pulseFbLink();
+    writeLS(FB_KEY, all); if (!quiet) pulseFbLink();
   }
   function clearFb() {
     const all = readLS(FB_KEY, []), gone = new Set(all.filter(r => r.region === st.region).map(r => r.id)), d = readLS(DEC_KEY, {});
@@ -901,20 +924,22 @@
     const sb = e.target.closest('.ppa-fbf .send');
     if (sb) {
       const f = sb.closest('.ppa-fbf'), i = +f.dataset.fq;
-      logFb({ kind: 'down', i, q: D.chat[i].q, reason: f.querySelector('[data-reason][aria-pressed=true]').dataset.reason, note: f.querySelector('textarea').value.trim().slice(0, 200) });
+      const wk = D.weeks[D.weeks.length - 1].wk; // the answer's scope is kept with the report, so the owner can triage what the user actually saw
+      logFb({ kind: 'down', i, q: D.chat[i].q, a: D.chat[i].a.slice(0, 400), scope: `${C.name} · W${wk} · all channels · latest week`, reason: f.querySelector('[data-reason][aria-pressed=true]').dataset.reason, note: f.querySelector('textarea').value.trim().slice(0, 200) });
       f.previousElementSibling.remove(); f.outerHTML = fbThanks(); log.scrollTop = log.scrollHeight; return;
     }
     if (e.target.closest('[data-fbr]')) openModal('fbr', $('[data-fbr-open]'));
   });
   const DEC = [['fix', 'Fix now'], ['later', 'Later'], ['wont', "Won't fix"], ['def', 'Needs a definition']];
   function myRows(recs) {
-    return recs.filter(r => r.kind !== 'up').map(r => {
+    return recs.filter(r => r.kind === 'down' || r.kind === 'nodata').map(r => {
       const base = { key: r.id, you: true, n: 1, ex: r.q, note: r.note };
       if (r.kind === 'nodata') return { ...base, theme: 'Typed question with no answer', src: '“no data” reply', dg: 'scope', dl: 'Out of scope', sug: "Not in this agent's answers yet. Add it, or say so in “What it covers”.", ai: 'later' };
-      if (r.reason === 'Wrong number') { // the agent re-runs the answer's checks before it diagnoses
+      if (r.reason === 'Wrong number') { // a reported discrepancy: logged with its question, answer and scope; the owner triages, the agent doesn't pre-diagnose
         const ck = D.chat[r.i].checks, ok = ck.filter(c => fmt(E.metric(c.spec), c.fmt) === c.text).length, all = ok === ck.length;
-        return { ...base, theme: 'You flagged a wrong number', src: '1 👎', dg: all ? 'def' : 'bug', dl: all ? 'Definition gap?' : 'Bug',
-          sug: all ? `The agent re-ran the checks: ${ok} of ${ck.length} numbers match the data, so the gap is likely the definition you expected.` : `The re-run found ${ck.length - ok} number(s) that don't match. Fix, and add a test case.`, ai: all ? 'def' : 'fix' };
+        const ctx = `Answer: “${r.a || D.chat[r.i].a}”` + (r.scope ? ` · Scope: ${r.scope}` : '');
+        return { ...base, theme: 'You reported a wrong number', src: '1 👎', ctx, dg: all ? 'scope' : 'bug', dl: all ? 'Pending triage' : 'Bug',
+          sug: all ? `Reported discrepancy, kept with the question, answer and scope for the owner. Re-run: ${ok} of ${ck.length} numbers still match the data — that doesn't rule out a source, unit or definition issue.` : `The re-run found ${ck.length - ok} number(s) that don't match. Fix, and add a test case.`, ai: all ? null : 'fix' };
       }
       const m = { 'Not what I asked': ['und', 'Misread question', 'Add this wording to the routing examples and the test set.', 'fix'], 'Too vague': ['und', 'Answer too thin', 'Add the follow-up you needed to this answer.', 'later'], Other: ['scope', 'Needs triage', 'Read the note; one report is not a pattern yet.', 'later'] }[r.reason];
       return { ...base, theme: r.reason === 'Other' ? 'Other feedback' : `“${r.reason}”`, src: '1 👎', dg: m[0], dl: m[1], sug: m[2], ai: m[3] };
@@ -924,11 +949,12 @@
     const R = D.review, s = R.sig, recs = myFb(), dec = readLS(DEC_KEY, {});
     const up = recs.filter(r => r.kind === 'up').length, dn = recs.filter(r => r.kind === 'down').length, nd = recs.filter(r => r.kind === 'nodata').length;
     const mine = myRows(recs), rows = [...mine, ...R.rows.map((r, i) => ({ ...r, key: st.region + '-s' + i }))];
-    const you = k => (k ? ` · ${k} from you` : ''), q = s.q + nd, dq = s.q - s.prev;
+    const asked = recs.filter(r => r.kind === 'ask').length; // answered questions logged in this browser
+    const you = k => (k ? ` · ${k} from you` : ''), q = s.q + asked + nd, dq = q - s.prev;
     const tile = (l, v, d) => `<div><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
     const got = rows.filter(r => dec[r.key]), tally = got.length ? `You decided ${got.length} of ${rows.length}: ` + DEC.map(([k, l]) => [l, got.filter(r => dec[r.key] === k).length]).filter(x => x[1]).map(([l, n]) => `${n} ${l.toLowerCase()}`).join(' · ') : 'Dashed = the agent\'s suggestion · click to decide';
     const row = r => `<div class="fbr-r${r.you ? ' you' : ''}">
-        <div><div class="th">${esc(r.theme)}</div><div class="ex">“${esc(r.ex)}”</div>${r.note ? `<div class="nt">Note: ${esc(r.note)}</div>` : ''}<span class="src">${esc(r.src)}</span>${r.you ? '<span class="src me">You · this browser</span>' : ''}</div>
+        <div><div class="th">${esc(r.theme)}</div><div class="ex">“${esc(r.ex)}”</div>${r.note ? `<div class="nt">Note: ${esc(r.note)}</div>` : ''}${r.ctx ? `<div class="nt">${esc(r.ctx)}</div>` : ''}<span class="src">${esc(r.src)}</span>${r.you ? '<span class="src me">You · this browser</span>' : ''}</div>
         <div class="cnt"><span>Count</span>${r.n}</div>
         <div><span class="dg ${r.dg}">${esc(r.dl)}</span><div class="sug">${esc(r.sug)}</div></div>
         <div class="dec">${DEC.map(([k, l]) => `<button type="button" data-dec="${k}" data-key="${esc(r.key)}"${r.ai === k ? ' class="ai"' : ''} aria-pressed="${dec[r.key] === k}">${l}</button>`).join('')}</div></div>`;
@@ -937,7 +963,7 @@
       <div class="ins-mast"><span>Feedback review · W${R.wk} · ${esc(C.name)} · synthetic week</span><span>${rows.length} themes${mine.length ? ` · ${mine.length} from you` : ''}</span></div>
       <h2 class="fbr-hl">${esc(R.headline)}</h2>
       <p class="fbr-p">${R.text}</p>
-      <div class="fbr-sig">${tile('Questions', q, `${dq >= 0 ? '+' : M}${Math.abs(dq)} vs W${R.wk - 1}${you(nd)}`)}${tile('👍 / 👎', `${s.up + up} / ${s.dn + dn}`, `1 in ${Math.round(q / (s.up + up + s.dn + dn))} answers rated${you(up + dn)}`)}${tile('Rephrased', s.reph, 'asked again in new words')}${tile('“No data” replies', s.nodata + nd, 'out of scope' + you(nd))}${tile('Checker flags', s.flags, 'blocked before shown')}</div>
+      <div class="fbr-sig">${tile('Questions', q, `${dq >= 0 ? '+' : M}${Math.abs(dq)} vs W${R.wk - 1}${you(asked + nd)}`)}${tile('👍 / 👎', `${s.up + up} / ${s.dn + dn}`, `1 in ${Math.max(1, Math.round(q / (s.up + up + s.dn + dn)))} answers rated${you(up + dn)}`)}${tile('Rephrased', s.reph, 'asked again in new words')}${tile('“No data” replies', s.nodata + nd, 'out of scope' + you(nd))}${tile('Checker flags', s.flags, 'blocked before shown')}</div>
       <div class="fbr-h"><span>Ranked by the agent · you decide each row</span><span class="tally">${esc(tally)}</span></div>
       <div class="fbr-t"><div class="fbr-r hd"><div>Theme</div><div>Count</div><div>Diagnosis · suggested fix</div><div>Decision</div></div>${rows.map(row).join('')}</div>
       <div class="fbr-h"><span>Fixed last week · loop closed</span></div>

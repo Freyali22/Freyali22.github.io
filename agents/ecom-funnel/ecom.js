@@ -59,13 +59,19 @@
     t.open = t.opens / t.deliv; t.ctor = t.clicks / t.opens; t.cvr = t.o / t.s; t.bounce = t.b / t.s;
     return t;
   }
+  // sessions by channel for one landing page, summed over the selected devices and weeks (the page x channel table)
+  function pageMix(k, dv, ws) {
+    const z = D.channels.map(() => 0);
+    DEVS(dv).forEach(d => ws.forEach(w => D.landing.mix[d][k][w].forEach((v, i) => (z[i] += v))));
+    return z;
+  }
   function pages(dv, ws, lws, per) {
     const sum = (k, w2) => { const z = [0, 0, 0]; DEVS(dv).forEach(d => w2.forEach(w => D.landing.data[d][k][w].forEach((v, i) => (z[i] += v)))); return z; };
     const T = G('all', dv, ws), L = G('all', dv, lws);
     const extraAll = (T.s - T.e) - T.s * L.bounce;
     return D.landing.pages.map(p => {
-      const t = sum(p.k, ws), l = sum(p.k, lws), src = D.landing.src[p.k][ws[ws.length - 1]];
-      const o = { k: p.k, name: p.name, s: t[0], b: t[1], o: t[2], bounce: t[1] / t[0], ls: l[0], lbounce: l[0] ? l[1] / l[0] : NaN, cvr: t[2] / t[0], src: src[0], srcShare: src[1] };
+      const t = sum(p.k, ws), l = sum(p.k, lws), mx = pageMix(p.k, dv, ws), j = mx.indexOf(Math.max(...mx));
+      const o = { k: p.k, name: p.name, s: t[0], b: t[1], o: t[2], bounce: t[1] / t[0], ls: l[0], lbounce: l[0] ? l[1] / l[0] : NaN, cvr: t[2] / t[0], src: D.channels[j].k, srcShare: mx[j] / t[0], srcN: mx[j], mix: mx };
       o.d = l[0] ? dp(o.bounce, o.lbounce) : NaN;
       o.extra = l[0] ? o.b - o.s * o.lbounce : 0;
       o.spike = o.d >= 8 && o.s >= 20000 * per;
@@ -155,7 +161,8 @@
     return null;
   }
   const spikePage = V => V.pg.filter(p => p.spike).sort((a, b) => b.extra - a.extra)[0] || null;
-  const verifyLine = ev => `It starts ${ev.from}, the day the ${ev.what} went live — ${rate(ev.exit / ev.reach, 0)} of mobile shoppers who reach it leave.`;
+  // a weekly grid can't date the break; the release note only says what went live in the week, so it's named as the cause to check
+  const verifyLine = ev => `The ${ev.what} went live on mobile ${ev.from}, mid-week, and ${rate(ev.exit / ev.reach, 0)} of shoppers who reach it leave there — the first cause to check.`;
   // the biggest step drop, explained from the data (device split, release note, page, send)
   function dropLine(V) {
     const x = V.drop;
@@ -177,7 +184,7 @@
   const sumList = rows => `<dl class="ppa-sum">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
   function alertBox(list) {
     const items = list.length
-      ? list.map(a => `<li class="${a.lv}"><b><span class="tag ${a.lv}">${a.tag}</span>${esc(a.name)}</b><span>${esc(a.txt)}</span>${a.q != null ? `<button type="button" class="ppa-inv" data-q="${a.q}">Investigate →</button>` : ''}</li>`).join('')
+      ? list.map(a => `<li class="${a.lv}"><b><span class="tag ${a.lv}">${a.tag}</span>${esc(a.name)}</b><span>${esc(a.txt)}</span>${a.run ? `<button type="button" class="ppa-inv" data-run="${a.run}">Investigate →</button>` : a.q != null ? `<button type="button" class="ppa-inv" data-q="${a.q}">Investigate →</button>` : ''}</li>`).join('')
       : '<li class="none">Nothing unusual in this view.</li>';
     return `<div><div class="ppa-al-h"><span>Alerts</span><span>${list.length} to act on</span></div><ul class="ppa-al">${items}</ul></div>`;
   }
@@ -188,8 +195,8 @@
   function checkoutAlerts(V, long) {
     return V.byDev.filter(f => V.sc.dv === 'all' || V.sc.dv === f.k).filter(f => dp(f.t.ordC, f.l.ordC) <= -3).map(f => {
       const ev = f.k === 'mobile' ? V.ev.verify : null;
-      const why = ev ? (long ? `${rate(ev.exit / ev.reach, 0)} of shoppers who reach the new ${ev.what} leave · median ${ev.median_s} s on the step` : `since the ${ev.what} went live ${ev.from}`) : `vs ${rate(f.l.ordC)} ${V.vs}`;
-      return { lv: 'crit', tag: 'Checkout drop', name: long && ev ? `${cap(ev.what)} (${f.k})` : `${f.name} checkout`, txt: `${rate(f.t.ordC)} complete (${pts(dp(f.t.ordC, f.l.ordC))}) · ${why} · about ${smoney(-impact(f))}`, q: 0, imp: impact(f) };
+      const why = ev ? (long ? `${rate(ev.exit / ev.reach, 0)} of shoppers who reach the new ${ev.what} leave · median ${ev.median_s} s on the step` : `the ${ev.what} went live ${ev.from}`) : `vs ${rate(f.l.ordC)} ${V.vs}`;
+      return { run: ev ? 'chk' : null, lv: 'crit', tag: 'Checkout drop', name: long && ev ? `${cap(ev.what)} (${f.k})` : `${f.name} checkout`, txt: `${rate(f.t.ordC)} complete (${pts(dp(f.t.ordC, f.l.ordC))}) · ${why} · est. ${money(impact(f))} at stake at last week's rate`, q: 0, imp: impact(f) };
     });
   }
   function pageAlerts(V) {
@@ -202,7 +209,7 @@
   function emailAlerts(V) {
     if (!V.em || !V.em.flag || V.sc.dv !== 'all') return [];
     const x = V.em.flag;
-    return [{ lv: 'warn', tag: 'Low clicks', name: `"${x.name}" email`, txt: `Opened by ${rate(x.open)}, clicked by ${rate(x.ctor)} of openers (other sends ${rate(x.others)})${x.link ? ` · links to ${x.link.page}, which opens ${x.link.opens}` : ''}`, q: 4 }];
+    return [{ lv: 'warn', tag: 'Low clicks', name: `"${x.name}" email`, txt: `Opened by ${rate(x.open)}, clicked by ${rate(x.ctor)} of openers (other sends ${rate(x.others)}) · check the CTA and audience${x.link ? ` · separately, its link goes to ${x.link.page}, not open until ${x.link.opens}, and ${rate(x.bounce, 0)} of the visits it sent bounce` : ''}`, q: 4 }];
   }
   function productAlerts(V) {
     const out = [];
@@ -327,7 +334,8 @@
         <div class="ppa-kick">2 · Journey — where do shoppers drop off?</div>
         <div class="ppa-kpis">
           ${kpi('Bounce rate', rate(t.bounce), vsP(V, dp(t.bounce, l.bounce), rate(l.bounce), true))}
-          ${kpi('Add-to-cart rate', rate(t.atcR), vsP(V, dp(t.atcR, l.atcR), rate(l.atcR)))}
+          ${kpi('Sessions with add-to-cart', rate(t.atcR), vsP(V, dp(t.atcR, l.atcR), rate(l.atcR)))}
+
           ${kpi('Cart abandonment', rate(t.cartAb), vsP(V, dp(t.cartAb, l.cartAb), rate(l.cartAb), true))}
           ${kpi('Checkout completion', rate(t.ordC), vsP(V, dp(t.ordC, l.ordC), rate(l.ordC)))}
         </div>
@@ -357,16 +365,16 @@
     }).join('');
     const rest = D.landing.data, other = (() => { const z = [0, 0]; DEVS(V.sc.dv).forEach(d => V.ws.forEach(w => { z[0] += rest[d].rest[w][0]; z[1] += rest[d].rest[w][1]; })); return z; })();
     return `<h3>Landing pages</h3><div class="sub">Where sessions start · ${esc(V.label)} · all channels · ${DEVNAME[V.sc.dv]}</div>
-      <div class="ppa-tw"><table class="tight"><tr><th>Page</th><th class="n">Sessions</th><th class="n">Bounce</th><th class="n">vs ${V.vsS}</th><th class="n">CVR</th><th class="n">Top source, latest week</th></tr>${rows}
+      <div class="ppa-tw"><table class="tight"><tr><th>Page</th><th class="n">Sessions</th><th class="n">Bounce</th><th class="n">vs ${V.vsS}</th><th class="n">CVR</th><th class="n">Top source</th></tr>${rows}
       <tr class="tot"><td>All other pages</td><td class="n">${count(other[0])}</td><td class="n">${rate(other[1] / other[0])}</td><td></td><td></td><td></td></tr></table></div>
-      <div class="note">Bounce = sessions that were not engaged (under 10 seconds, one page, no conversion), as in GA4. A bounce spike = up 8 pts or more on a page with real traffic.</div>`;
+      <div class="note">Bounce = sessions that were not engaged (under 10 seconds, one page, no conversion), as in GA4. A bounce spike = up 8 pts or more on a page with real traffic. Top source = the channel that started the most of a page's sessions, for the period and devices shown.</div>`;
   }
   function emailTable(V) {
     const E = V.em;
     if (!E.t.length) return '<h3>Email sends</h3><div class="sub">No sends in this period.</div>';
     const all = V.sc.dv === 'all';
     const rows = [...E.t].sort((a, b) => b.w - a.w || b.deliv - a.deliv).map(x => {
-      const why = x.low ? `${x.bestOpen ? 'Best open rate in this period, so the subject line works. ' : ''}Click-to-open ${rate(x.ctor)} vs ${rate(x.others)} for the other sends.${x.link ? ` The button goes to ${x.link.page}, which opens ${x.link.opens} — ${rate(x.bounce, 0)} of visitors leave it.` : ''}` : '';
+      const why = x.low ? `${x.bestOpen ? 'Best open rate in this period, so the subject line gets opened. ' : ''}Click-to-open ${rate(x.ctor)} vs ${rate(x.others)} for the other sends — check the CTA, the content and who it went to.${x.link ? ` Separately, the button goes to ${x.link.page}, which doesn't open until ${x.link.opens}, so ${rate(x.bounce, 0)} of the few who click leave at once.` : ''}` : '';
       return `<tr class="${x.low ? 'flag' : ''}"><td>${esc(x.name)}${x.low ? flag('low clicks') : ''}${V.per > 1 ? `<small>W${D.meta.weeks[x.w].wk}</small>` : ''}</td><td class="n">${count(x.deliv)}</td><td class="n">${rate(x.open)}</td><td class="n${x.low ? ' dn' : ''}">${rate(x.ctor)}</td><td class="n">${count(x.s)}</td><td class="n">${rate(x.cvr)}</td><td class="n">${money(x.r)}</td></tr>` + (why ? `<tr class="why"><td colspan="7">${esc(why)}</td></tr>` : '');
     }).join('');
     return `<h3>Email sends</h3><div class="sub">${esc(V.label)} · site results ${all ? '' : `(${V.sc.dv}) `}matched on each send's campaign tag${all ? '' : ' · delivered, opens and clicks are all devices'}</div>
@@ -381,7 +389,7 @@
     const byChg = [...P].sort((x, y) => y.dChg - x.dChg), top = byChg[0], drag = byChg[byChg.length - 1];
     const band = P.filter(p => Math.abs(p.dPct - sr) <= 6).length;
     const rows = [['Site-wide', band >= P.length / 2
-      ? `${band} of ${P.length} products are within 6 pts of the site's ${chg(sr)} — that's the site moving, not the products.`
+      ? `${band} of ${P.length} products are within 6 pts of the site's ${chg(sr)}, so most of the move looks site-wide rather than product by product.`
       : `Products moved apart from the site's ${chg(sr)}: ${band} of ${P.length} are within 6 pts of it.`]];
     rows.push(['Top driver', `${top.name} ${smoney(top.dChg)} (${chg(top.dPct)}), page views ${chg(top.vPct)}.`]);
     const ds = V.ev.sold && V.ev.sold.product === drag.k ? V.ev.sold : null;
@@ -413,7 +421,7 @@
         <div class="ppa-kick">3 · Products — what are shoppers looking at, and buying?</div>
         <div class="ppa-kpis">
           ${kpi('Product page views', count(v), vsG(V, gr(v, lv), count(lv)))}
-          ${kpi('Add-to-cart rate', rate(a / v), vsP(V, dp(a / v, la / lv), rate(la / lv)))}
+          ${kpi('Add-to-carts per view', rate(a / v), vsP(V, dp(a / v, la / lv), rate(la / lv)))}
           ${kpi('Top driver', top.name, `<b class="${tone(top.dChg)}">${smoney(top.dChg)}</b> vs ${V.vs}`, true)}
           ${kpi('Biggest drag', drag.name, `<b class="${tone(drag.dChg)}">${smoney(drag.dChg)}</b> vs ${V.vs}`, true)}
         </div>
@@ -425,7 +433,7 @@
       </section>
       <section class="ppa-card"><h3>Products</h3><div class="sub">${esc(V.label)} · all channels · ${DEVNAME[V.sc.dv]} · bar = add-to-cart rate, tick = the other products in its category</div>
         <div class="ppa-tw"><table class="tight"><tr><th>Product</th><th>Category</th><th class="n">Page views</th><th class="n">vs ${V.vsS}</th><th class="n">Add-to-cart</th><th class="n">View-to-buy</th><th class="n">Demand</th><th class="n">vs ${V.vsS}</th><th class="n">Sold out</th></tr>${trs}</table></div>
-        <div class="note">Add-to-cart rate = add-to-carts ÷ page views · view-to-buy = orders ÷ page views · sold out = share of page views that opened on an option with no stock. Products read all channels.</div>
+        <div class="note">Add-to-cart rate = add-to-carts ÷ page views (Journey's rate is per session) · view-to-buy = orders ÷ page views · sold out = share of page views that opened on an option with no stock. Products read all channels; these are the 14 tracked products, not the full catalog, so their demand doesn't add up to site revenue.</div>
       </section>`;
   }
 
@@ -440,6 +448,10 @@
     emRev: w => raw(w, ['email'], D.devices, 6),
     ses: w => raw(w, CHS('all'), D.devices, 0),
     bounce: w => 1 - raw(w, CHS('all'), D.devices, 1) / raw(w, CHS('all'), D.devices, 0),
+    // estimated at stake: mobile checkout starts this week x (last week's completion - this week's) x this week's mobile order value
+    mobAtStake: w => { const c = raw(w, CHS('all'), ['mobile'], 4), o = raw(w, CHS('all'), ['mobile'], 5), r = raw(w, CHS('all'), ['mobile'], 6); return c * (RAW.mobOrd(w - 1) - o / c) * (r / o); },
+    // a product's demand vs what it would have been had it moved with the site's revenue
+    vsSite: (w, k) => { const dm = x => D.devices.reduce((s, d) => s + D.products.data[d][k][x][3], 0); return dm(w) - dm(w - 1) * RAW.rev(w) / RAW.rev(w - 1); },
   };
   function insights() {
     const V = view({ per: 1, ch: 'all', dv: 'all' }), { t, l } = V, w = LAST, checks = [];
@@ -450,12 +462,14 @@
     const share = drop > 0 ? effM / drop : 0;
     const mobD = dp(m.t.ordC, m.l.ordC), deskD = dp(k.t.ordC, k.l.ordC);
     const head = x.key === 'ordC' && sp === 'mobile' && V.ev.verify
-      ? `A new payment step is costing the week — <em>mobile checkout</em> lost ${n(Math.abs(mobD).toFixed(1), () => Math.abs(dp(RAW.mobOrd(w), RAW.mobOrd(w - 1))).toFixed(1))} points, while desktop held.`
+      ? `<em>Mobile checkout</em> is where the week broke — completion fell ${n(Math.abs(mobD).toFixed(1), () => Math.abs(dp(RAW.mobOrd(w), RAW.mobOrd(w - 1))).toFixed(1))} points the week a new payment step went live, while desktop held.`
       : `${STAGE[x.key] || 'The journey'} is where the week moved — ${esc(x.pair.toLowerCase())} ${pts(x.d)}.`;
-    const lead = share >= 0.5 ? 'explains most of it' : share >= 0.3 ? 'is the biggest single part' : 'is part of it';
+    const lead = share >= 0.5 ? 'most of' : share >= 0.3 ? 'the biggest single part of' : 'part of';
+    const wk0 = D.meta.weeks[w], days = wk0.start.slice(5, 7) === wk0.end.slice(5, 7) ? `${dlab(wk0.start)}–${+wk0.end.slice(8)}` : `${dlab(wk0.start)}–${dlab(wk0.end)}`;
+
     let deck = `Revenue was <b>${n(money(t.r), () => money(RAW.rev(w)))}</b>, <b>${n(chg(sr), () => chg(gr(RAW.rev(w), RAW.rev(w - 1))))}</b> on the week before.`;
-    if (V.ev.verify && mobD <= -3) deck += ` Mobile checkout ${lead}: about <b>${money(effM)}</b> of the <b>${money(drop)}</b> drop. Since the ${V.ev.verify.what} went live on ${V.ev.verify.from}, <b>${n(rate(m.t.ordC), () => rate(RAW.mobOrd(w)))}</b> of mobile checkouts finish, down from ${n(rate(m.l.ordC), () => rate(RAW.mobOrd(w - 1)))}.`;
-    if (jp && jEff < 0) deck += ` The ${jp.name} selling out in ${sold.option} cost about <b>${money(-jEff)}</b> more, beyond the site-wide dip.`;
+    if (V.ev.verify && mobD <= -3) deck += ` Over the full week (${days}), <b>${n(rate(m.t.ordC), () => rate(RAW.mobOrd(w)))}</b> of mobile checkouts finished, down from ${n(rate(m.l.ordC), () => rate(RAW.mobOrd(w - 1)))}; the ${V.ev.verify.what} went live mid-week, on ${V.ev.verify.from}. Had mobile finished at last week's rate, it would have sold about <b>${n(money(effM), () => money(RAW.mobAtStake(w)))}</b> more — ${lead} the <b>${money(drop)}</b> drop, though it's an estimate of what's at stake, not a measured loss.`;
+    if (jp && jEff < 0) deck += ` Separately, ${jp.name} demand came in <b>${n(money(-jEff), () => money(-RAW.vsSite(w, jp.k)))}</b> under what the site's ${chg(sr)} would imply; ${sold.option} sold out ${sold.from}. That gap overlaps the checkout estimate, so don't add the two together.`;
     const stats = [
       ['Revenue', money(t.r), `<b class="${tone(sr)}">${arrow(sr)}${n(chg(sr), () => chg(gr(RAW.rev(w), RAW.rev(w - 1))))}</b> · LW ${n(money(l.r), () => money(RAW.rev(w - 1)))}`],
       ['Conversion rate', n(rate(t.cvr, 2), () => rate(RAW.cvr(w), 2)), `<b class="${tone(dp(t.cvr, l.cvr))}">${arrow(dp(t.cvr, l.cvr))}${pts(dp(t.cvr, l.cvr), 2)}</b> · LW ${n(rate(l.cvr, 2), () => rate(RAW.cvr(w - 1), 2))}`],
@@ -473,9 +487,12 @@
     const leadStage = STAGE[x.key] || 'Checkout';
     const bars = s => { const mx = Math.max(...s.bars.map(b => Math.abs(b.v))) || 1; return s.bars.map(b => `<div class="ins-br"><span>${esc(b.label)}</span><span class="t"><i class="${b.v < 0 ? 'neg' : 'pos'}" style="width:${(Math.abs(b.v) / mx * 100).toFixed(1)}%"></i></span><span class="n ${b.v < -0.05 ? 'dn' : b.v > 0.05 ? 'up' : ''}">${esc(b.t)}</span></div>`).join(''); };
     const acts = [];
-    checkoutAlerts(V).forEach(a => acts.push({ t: V.ev.verify ? `Fix or roll back the mobile ${V.ev.verify.what}` : `Find what changed in ${a.name.toLowerCase()}`, b: `${rate(m.t.ordC)} of mobile checkouts finish, down from ${rate(m.l.ordC)} — about ${money(effM)} a week.`, g: ['Owner: site product', 'Check: checkout completion back near ' + rate(m.l.ordC)] }));
+    checkoutAlerts(V).forEach(a => acts.push(V.ev.verify
+      ? { t: `Investigate the mobile ${V.ev.verify.what}; controlled rollback if it's the cause`, b: `${rate(m.t.ordC)} of mobile checkouts finished this week, down from ${rate(m.l.ordC)} — about ${money(effM)} a week estimated at stake. The payments team confirms the cause with completion before vs after ${V.ev.verify.from}, and weighs what the step protects (payment failures, fraud) before rolling it back.`, g: ['Owner: Payments team', 'Check: checkout completion back near ' + rate(m.l.ordC)] }
+      : { t: `Find what changed in ${a.name.toLowerCase()}`, b: `${rate(m.t.ordC)} of mobile checkouts finished, down from ${rate(m.l.ordC)} — about ${money(effM)} a week estimated at stake.`, g: ['Owner: site product', 'Check: checkout completion back near ' + rate(m.l.ordC)] }));
     if (sold && jp) acts.push({ t: `Swap the "${sold.ad}" ad to ${sold.alt}, or pause it`, b: `${cap(sold.option)} sold out ${sold.from}; ${rate(jp.soShare, 0)} of ${jp.name} page views still open on it. ${cap(sold.alt)} has ${sold.alt_wos} weeks of supply.`, g: ['Owner: paid social', 'Check: product page bounce'] });
-    if (V.em.flag && V.em.flag.link) acts.push({ t: `Resend "${V.em.flag.name}" on ${V.em.flag.link.opens}`, b: `Opened by ${rate(V.em.flag.open)}, but only ${rate(V.em.flag.ctor)} of openers clicked: the link goes to ${V.em.flag.link.page}, which opens ${V.em.flag.link.opens}.`, g: ['Owner: CRM', 'Check: click-to-open'] });
+    if (V.em.flag && V.em.flag.link) { const f = V.em.flag; acts.push({ t: `Resend "${f.name}" once the page opens ${f.link.opens}`, b: `Its link went to ${f.link.page} before it opened, so ${rate(f.bounce, 0)} of the visits it sent bounced. Clicks were low before that, too: ${rate(f.ctor)} of openers vs ${rate(f.others)} for the other sends, so review the CTA and audience before the resend.`, g: ['Owner: CRM', 'Check: click-to-open and landing bounce'] }); }
+
     const ok = checks.filter(c => c.re() === c.text).length;
     const wk = D.meta.weeks[w];
     return `<div class="ppa-card ins">
@@ -520,28 +537,37 @@
         lis.push(`Mobile ${c(rate(m.t.cvr, 2), 'Journey › Mobile › Conversion rate')} (${c(pts(md, 2), 'Journey › Mobile › Conversion rate › vs ' + V.vsS)}); desktop ${c(rate(kk.t.cvr, 2), 'Journey › Desktop › Conversion rate')} (${c(pts(kd, 2), 'Journey › Desktop › Conversion rate › vs ' + V.vsS)}).`);
         if (who) {
           const f = devOf(V, who), sub = { ...V, t: f.t, l: f.l, sc: { ...V.sc, dv: who } }, st2 = stepList(f.t, f.l, null).filter(s => s.key).reduce((a, b) => (b.d < a.d ? b : a));
-          lis.push(`On ${who}, the biggest step drop is ${st2.pair.toLowerCase()}: ${c(rate(st2.rate), `Journey › ${cap(who)} › ${st2.pair}`)}, from ${c(rate(st2.lrate), `Journey › ${cap(who)} › ${st2.pair} › ${V.vsS}`)}.` + (st2.key === 'ordC' && who === 'mobile' && V.ev.verify ? ` It starts ${V.ev.verify.from}, when the ${V.ev.verify.what} went live.` : ''));
+          lis.push(`On ${who}, the biggest step drop is ${st2.pair.toLowerCase()}: ${c(rate(st2.rate), `Journey › ${cap(who)} › ${st2.pair}`)}, from ${c(rate(st2.lrate), `Journey › ${cap(who)} › ${st2.pair} › ${V.vsS}`)}.` + (st2.key === 'ordC' && who === 'mobile' && V.ev.verify ? ` The ${V.ev.verify.what} went live ${V.ev.verify.from}, mid-week — the first cause to check.` : ''));
           void sub;
         }
       } else {
         const x = V.drop;
-        lis.push(`On ${V.sc.dv}, the biggest step change is ${x.pair.toLowerCase()}: ${c(rate(x.rate), 'Journey › ' + x.pair)} (${c(pts(x.d), 'Journey › ' + x.pair + ' › vs ' + V.vsS)}).` + (x.key === 'ordC' && V.ev.verify ? ` It starts ${V.ev.verify.from}, when the ${V.ev.verify.what} went live.` : ''));
+        lis.push(`On ${V.sc.dv}, the biggest step change is ${x.pair.toLowerCase()}: ${c(rate(x.rate), 'Journey › ' + x.pair)} (${c(pts(x.d), 'Journey › ' + x.pair + ' › vs ' + V.vsS)}).` + (x.key === 'ordC' && V.ev.verify ? ` The ${V.ev.verify.what} went live ${V.ev.verify.from}, mid-week — the first cause to check.` : ''));
       }
       src.push('get_journey(device)');
     } else if (k === 'funnel') {
+      // two different measures, named as such: people lost at a step (count), and the step that got worse (rate change)
       const x = V.drop, site = V.steps.filter(s => s.key);
-      head = x.d < 0 ? `At ${x.pair.toLowerCase()}: ${c(rate(x.rate), 'Journey › ' + x.pair)}, ${c(pts(x.d), 'Journey › ' + x.pair + ' › vs ' + V.vsS)} vs ${V.vs}.` : `No step lost ground vs ${V.vs}; the weakest move is ${x.pair.toLowerCase()}, ${c(pts(x.d), 'Journey › ' + x.pair + ' › vs ' + V.vsS)}.`;
-      checks.push({ ok: site.every(s => s.d >= x.d), t: `"most" checked against all ${site.length} step changes` });
-      lis.push(`Cart abandonment is ${c(rate(t.cartAb), 'Journey › KPI › Cart abandonment')} (${c(pts(dp(t.cartAb, l.cartAb)), 'Journey › KPI › Cart abandonment › vs ' + V.vsS)})` + (V.sc.dv === 'all' ? ` — ${c(rate(V.byDev[0].t.cartAb), 'Journey › Cart abandonment › Mobile')} on mobile vs ${c(rate(V.byDev[1].t.cartAb), 'Journey › Cart abandonment › Desktop')} on desktop.` : '.'));
+      const lost = V.steps.map((s, i) => (s.key && !s.em ? { s, from: V.steps[i - 1].n, n: V.steps[i - 1].n - s.n } : null)).filter(Boolean), big = lost.reduce((a, b) => (b.n > a.n ? b : a));
+      head = `By count, the most shoppers are lost at ${big.s.pair.toLowerCase()}: ${c(count(big.n), 'Journey › ' + big.s.pair + ' › Count')} of ${c(count(big.from), 'Journey › ' + big.s.pair.split(' → ')[0] + ' › Count')} sessions don't go on (step rate ${c(rate(big.s.rate), 'Journey › ' + big.s.pair)}).`;
+      checks.push({ ok: lost.every(y => y.n <= big.n), t: `"most shoppers" checked: largest count lost across ${lost.length} site steps` });
+      lis.push(x.d < 0
+        ? (x === big.s ? `It's also the step that got worse most vs ${V.vs}: ` : `By change vs ${V.vs}, the step that got worse most is ${x.pair.toLowerCase()}: `) + `${c(rate(x.rate), 'Journey › ' + x.pair)}, ${c(pts(x.d), 'Journey › ' + x.pair + ' › vs ' + V.vsS)}.`
+        : `No step lost ground vs ${V.vs}; the weakest move is ${x.pair.toLowerCase()}, ${c(pts(x.d), 'Journey › ' + x.pair + ' › vs ' + V.vsS)}.`);
+      checks.push({ ok: site.every(s => s.d >= x.d), t: `"got worse most" checked against all ${site.length} step changes` });
       const sp = devSplit(V, x.key);
-      if (sp && x.d < 0) lis.push(`It's ${sp}: ${c(rate(devOf(V, sp).t[x.key]), `Journey › ${cap(sp)} › ${x.pair}`)} vs ${c(rate(devOf(V, sp === 'mobile' ? 'desktop' : 'mobile').t[x.key]), `Journey › ${sp === 'mobile' ? 'Desktop' : 'Mobile'} › ${x.pair}`)}.`);
+      if (sp && x.d < 0) lis.push(`It's ${sp}: ${c(rate(devOf(V, sp).t[x.key]), `Journey › ${cap(sp)} › ${x.pair}`)} vs ${c(rate(devOf(V, sp === 'mobile' ? 'desktop' : 'mobile').t[x.key]), `Journey › ${sp === 'mobile' ? 'Desktop' : 'Mobile'} › ${x.pair}`)} on ${sp === 'mobile' ? 'desktop' : 'mobile'}.`);
+      lis.push(`Cart abandonment is ${c(rate(t.cartAb), 'Journey › KPI › Cart abandonment')} (${c(pts(dp(t.cartAb, l.cartAb)), 'Journey › KPI › Cart abandonment › vs ' + V.vsS)})` + (V.sc.dv === 'all' ? ` — ${c(rate(V.byDev[0].t.cartAb), 'Journey › Cart abandonment › Mobile')} on mobile vs ${c(rate(V.byDev[1].t.cartAb), 'Journey › Cart abandonment › Desktop')} on desktop.` : '.'));
       src.push('get_journey()');
     } else if (k === 'channel') {
       const ch = V.byCh, byR = [...ch].sort((a, b) => b.t.r - a.t.r), byC = [...ch].sort((a, b) => a.t.cvr - b.t.cvr), top = byR[0], worst = byC[0], best = byC[byC.length - 1];
       head = `${top.name} drives the most: ${c(money(top.t.r), `Overview › By channel › ${top.name} › Revenue`)}, ${c(rate(top.t.r / V.all.t.r, 0), `Overview › By channel › ${top.name} › Mix`)} of revenue. ${worst.name} converts worst, ${c(rate(worst.t.cvr, 2), `Overview › By channel › ${worst.name} › CVR`)}.`;
       checks.push({ ok: byR[0] === top && byC[0] === worst, t: `"most" and "worst" checked against all ${ch.length} channels` });
       const sgw = gr(worst.t.s, worst.l.s);
-      lis.push(`${worst.name} sessions are ${sgw >= 0 ? 'up' : 'down'} ${c(chg(sgw), `Overview › By channel › ${worst.name} › vs ${V.vsS}`)}, with ${c(rate(worst.t.bounce), `Overview › By channel › ${worst.name} › Bounce`)} bounce.` + (worst.k === 'social' && V.ev.sold ? ` Most of it lands on the ${D.products.list.find(p => p.k === V.ev.sold.product).name}, sold out in ${V.ev.sold.option}.` : ''));
+      const jpg = worst.k === 'social' && V.ev.sold ? V.pg.find(p => p.k === V.ev.sold.product) : null;
+      const jn = jpg ? pageMix(jpg.k, V.sc.dv, V.ws)[D.channels.findIndex(x => x.k === worst.k)] : 0;
+      lis.push(`${worst.name} sessions are ${sgw >= 0 ? 'up' : 'down'} ${c(chg(sgw), `Overview › By channel › ${worst.name} › vs ${V.vsS}`)}, with ${c(rate(worst.t.bounce), `Overview › By channel › ${worst.name} › Bounce`)} bounce.` + (jpg && jn ? ` ${c(rate(jn / worst.t.s, 0), `Journey › Landing pages › ${jpg.name} › sessions from ${worst.name.toLowerCase()}`)} of them start on the ${jpg.name} page, sold out in ${V.ev.sold.option}; they make up ${c(rate(jn / jpg.s, 0), `Journey › Landing pages › ${jpg.name} › Top source`)} of that page's visits.` : ''));
+      if (jpg && jn) checks.push({ ok: jn <= worst.t.s && jn <= jpg.s, t: `page share read from the page × channel table, both ways round (of ${worst.name.toLowerCase()}, of the page)` });
       checks.push({ ok: (sgw >= 0) === (gr(worst.t.s, worst.l.s) >= 0), t: `"${sgw >= 0 ? 'up' : 'down'}" matches the sign of ${chg(sgw)}` });
       lis.push(`${best.name} converts best, ${c(rate(best.t.cvr, 2), `Overview › By channel › ${best.name} › CVR`)}.`);
       checks.push({ ok: true, t: '"best" checked against all channels' });
@@ -566,15 +592,19 @@
       } else if (!V.em.T.n) { head = 'No email went out in this period.'; checks.push({ ok: true, t: 'scope stated' }); } else {
         const T = V.em.T, L = V.em.L, best = [...V.em.t].sort((a, b) => b.r - a.r)[0], f = V.em.flag;
         if (V.sc.dv === 'all') {
-          const od = dp(T.open, L.open), cd = dp(T.ctor, L.ctor);
-          head = `${od >= 0 ? 'More' : 'Fewer'} opens, ${cd >= 0 ? 'more' : 'fewer'} clicks. Open rate ${c(rate(T.open), 'Journey › Email › Opened')} (${c(pts(od), 'Journey › Email › Opened › vs ' + V.vsS)}); click-to-open ${c(rate(T.ctor), 'Journey › Email › Clicked')} (${c(pts(cd), 'Journey › Email › Clicked › vs ' + V.vsS)}).`;
-          checks.push({ ok: true, t: `"${od >= 0 ? 'more' : 'fewer'}" and "${cd >= 0 ? 'more' : 'fewer'}" match the signs` });
+          const od = dp(T.open, L.open), cd = dp(T.ctor, L.ctor), kg = gr(T.clicks, L.clicks), hi = v => (v >= 0 ? 'higher' : 'lower');
+          const clk = isFinite(kg) ? `; total clicks ${(kg >= 0) !== (cd >= 0) ? 'still ' : ''}${kg >= 0 ? 'rose' : 'fell'} ${c(Math.abs(kg).toFixed(1) + '%', 'Journey › Email › Clicked › count vs ' + V.vsS)}` : '';
+          head = `${cap(hi(od))} open rate, ${hi(cd)} click-to-open${clk}. Open rate ${c(rate(T.open), 'Journey › Email › Opened')} (${c(pts(od), 'Journey › Email › Opened › vs ' + V.vsS)}); click-to-open ${c(rate(T.ctor), 'Journey › Email › Clicked')} (${c(pts(cd), 'Journey › Email › Clicked › vs ' + V.vsS)}).`;
+          // re-count from the send log, not from the view: each word must match the quantity it names
+          const rc = ws => D.email.filter(e => ws.includes(e.w)).reduce((a, e) => [a[0] + e.deliv, a[1] + e.opens, a[2] + e.clicks], [0, 0, 0]), A1 = rc(V.ws), A0 = rc(V.lws);
+          checks.push({ ok: (A1[1] / A1[0] >= A0[1] / A0[0]) === (od >= 0) && (A1[2] / A1[1] >= A0[2] / A0[1]) === (cd >= 0) && (!clk || (A1[2] >= A0[2]) === (kg >= 0)),
+            t: `"${hi(od)} open rate", "${hi(cd)} click-to-open"${clk ? ` and clicks "${kg >= 0 ? 'rose' : 'fell'}" (${count(A0[2])} → ${count(A1[2])})` : ''} re-counted from the send log` });
         } else {
           head = `Email brought ${c(count(T.s), 'Journey › Email › Sessions')} ${V.sc.dv} sessions at ${c(rate(T.cvr), 'Journey › Email › CVR')} conversion.`;
           lis.push("Opens and clicks aren't split by device, so they're left out here.");
         }
         lis.push(`Revenue from email was ${c(money(T.r), 'Overview › By channel › Email › Revenue')} (${c(chg(gr(T.r, L.r)), 'Overview › By channel › Email › vs ' + V.vsS)}); "${esc(best.name)}" led at ${c(money(best.r), `Journey › Email sends › ${best.name} › Revenue`)}.`);
-        if (f) lis.push(`"${esc(f.name)}" was opened by ${c(rate(f.open), `Journey › Email sends › ${f.name} › Open rate`)} but clicked by ${c(rate(f.ctor), `Journey › Email sends › ${f.name} › Click-to-open`)} of openers${f.link ? `: its link goes to ${f.link.page}, which opens ${f.link.opens}` : ''}.`);
+        if (f) lis.push(`"${esc(f.name)}" was opened by ${c(rate(f.open), `Journey › Email sends › ${f.name} › Open rate`)} but clicked by ${c(rate(f.ctor), `Journey › Email sends › ${f.name} › Click-to-open`)} of openers — check the CTA and who it went to.${f.link ? ` Separately, its link goes to ${f.link.page}, which opens ${f.link.opens}: ${c(rate(f.bounce, 0), `Journey › Email sends › ${f.name} › note`)} of the visits it sent bounced.` : ''}`);
         checks.push({ ok: V.em.t.every(x => x.r <= best.r), t: '"led" checked against every send' });
       }
       src.push('get_email()');
@@ -601,7 +631,8 @@
     const tmp = document.createElement('div'); tmp.innerHTML = html;
     tmp.querySelectorAll('.cite').forEach(e => e.remove());
     const loose = tmp.textContent.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d+\/\d+|W\d+|#\d+|\b(last|prior) 4 weeks/g, '').match(/[+−-]?\$?\d[\d.,]*\s?(%|pt|K|M)?/g) || [];
-    const all = [{ ok: loose.length === 0, t: `${ledger.length} numbers, all cited${loose.length ? ` — uncited: ${loose.join(', ')}` : ' and match the page'}` }, ...checks];
+    const all = [{ ok: loose.length === 0, t: `${ledger.length} numbers, all cited${loose.length ? ` — uncited: ${loose.join(', ')}` : ' to where they show on the page'}` }, ...checks];
+
     if (all.some(x => !x.ok)) return `<div class="hl">Withheld — this answer failed a check, so it isn't shown.</div><div class="chk">${all.map(x => `<span class="${x.ok ? '' : 'bad'}">${x.ok ? '✓' : '✗'} ${esc(x.t)}</span>`).join('')}</div>`;
     return html + `<div class="chk">${all.map(x => `<span>✓ ${esc(x.t)}</span>`).join('')}</div><div class="stamp">${esc(stamp)} · ${esc(src.join(', '))}</div>`;
   }
@@ -612,11 +643,14 @@
       <div class="ppa-sugtop">${QS.map((x, i) => `<button type="button" data-i="${i}"${asked.has(i) ? ' disabled' : ''}>→ ${esc(x.q)}</button>`).join('')}
       <div class="ppa-scope"><b>What it covers:</b> traffic, the journey, email sends, landing pages and products on this page, for the filters you have set. <b>Not:</b> plan, last year, or anything outside this data — those get "not in this data" rather than a guess.</div></div>`;
   };
-  function resetChat() { asked.clear(); log.innerHTML = sugHTML(); }
+  function resetChat() { if (running) return; saved = null; endRun(); asked.clear(); log.innerHTML = sugHTML(); }
   function ask(i) {
     asked.add(i);
     log.querySelectorAll('.ppa-sugtop [data-i]').forEach(b => (b.disabled = asked.has(+b.dataset.i)));
-    log.insertAdjacentHTML('beforeend', `<div class="q">${esc(QS[i].q)}</div><div class="a">${answer(QS[i].k)}${fbBar(i)}</div>`);
+    const html = answer(QS[i].k);
+    // every answered question is a turn: logged with its scope and the answer as shown, so a later 👎 can be re-run as it was
+    const turn = logFb({ kind: 'ask', q: QS[i].q, k: QS[i].k, scope: { per: st.per, ch: st.ch, dv: st.dv }, ans: ansText(html), withheld: /Withheld/.test(html) }, true);
+    log.insertAdjacentHTML('beforeend', `<div class="q">${esc(QS[i].q)}</div><div class="a">${html}${fbBar(i, turn)}</div>`);
     log.scrollTop = log.scrollHeight;
   }
   const wordset = t => new Set(t.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1));
@@ -634,54 +668,166 @@
     log.scrollTop = log.scrollHeight;
   }
 
+  // ---------------------------------------------------------------- Investigate: a bounded agent loop (same shape as the Product Performance Agent's)
+  // Each step picks the next tool from what the last result showed; here a fixed policy picks, so every run is the same.
+  // The agent works on the dashboard you see: each step moves the filters and tabs behind the panel and marks what it read.
+  const MAX = 6, wait = ms => new Promise(r => setTimeout(r, ms));
+  const PACE = matchMedia('(prefers-reduced-motion: reduce)').matches ? { call: 300, read: 600 } : { call: 400, read: 600 };
+  const head = $('.ppa-chat-h b'), headSub = $('.ppa-chat-h small'), HEAD = [head.textContent, headSub.textContent];
+  let running = false, saved = null, prev = null;   // prev: the dashboard as it was before the run, put back when the panel closes
+  const call = (label, tool, rows) => `<div class="ppa-call"><div class="h"><b>${esc(label)}</b><span class="tool">${esc(tool)}</span></div>${rows.map(r => `<div class="r">${r}</div>`).join('')}</div>`;
+  const hl = els => {
+    $$('.ag-hl').forEach(x => x.classList.remove('ag-hl'));
+    els = els.filter(Boolean); els.forEach(x => x.classList.add('ag-hl'));
+    if (els[0] && innerWidth >= 760) els[0].scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  };
+  const sumRow = name => { const dt = $$('.ppa-sum dt').find(x => x.textContent.trim().toLowerCase() === name); return dt ? [dt, dt.nextElementSibling] : []; };
+  function endRun() { chat.classList.remove('run'); head.textContent = HEAD[0]; headSub.textContent = HEAD[1]; $('.ppa-input').hidden = false; $$('.ag-hl').forEach(x => x.classList.remove('ag-hl')); }
+  function leaveRun() { if (saved == null || running) return; log.innerHTML = saved; saved = null; endRun(); restore(); syncLog(); log.scrollTop = log.scrollHeight; }
+  function restore() { if (!prev) return; Object.assign(st, prev); prev = null; setF(); $$('.ag-hl').forEach(x => x.classList.remove('ag-hl')); render(); }
+  function setF() { const p = $('[data-f=per]'), c = $('[data-f=ch]'); if (p) p.value = String(st.per); if (c) c.value = st.ch; }
+  async function investigate() {
+    if (running) return; running = true;
+    if (saved == null) saved = log.innerHTML;
+    chat.classList.add('run'); head.textContent = 'Agent run · Checkout drop'; headSub.textContent = 'Agent loop · max ' + MAX + ' steps · you approve the result'; $('.ppa-input').hidden = true;
+    openChat();
+    if (!prev) prev = { tab: st.tab, per: st.per, ch: st.ch, dv: st.dv };
+    st.per = 1; st.ch = 'all'; st.dv = 'all'; st.tab = 'overview'; setF(); render();
+    const A0 = view({ per: 1, ch: 'all', dv: 'all' });
+    log.innerHTML = `<div class="ppa-biz"><div class="sn">The question</div><p>Revenue is down ${chg(-gr(A0.t.r, A0.l.r)).replace('+', '')} on last week, but traffic is ${gr(A0.t.s, A0.l.s) >= 0 ? 'up' : 'down'} ${chg(Math.abs(gr(A0.t.s, A0.l.s))).replace('+', '')}. Where are shoppers leaving, why, and what should we do about it?</p></div><div class="hint">The agent answers it step by step on the dashboard behind this panel. Each step picks the next tool from what the last result showed, at most ${MAX} steps; a fixed policy makes the picks, so every run is the same.</div>`;
+    let n = 0;
+    const step = async (why, card, dec, after) => {
+      n++;
+      log.insertAdjacentHTML('beforeend', `<div class="ppa-step working"><div class="sn">Step ${n} of ${MAX}</div><div class="why">${esc(why)}</div><div class="wk">Calling ${esc((card.match(/class="tool">([^<]+)</) || [, 'calculation'])[1])}<i>…</i></div></div>`);
+      const box = log.lastElementChild;
+      log.scrollTo({ top: box.offsetTop - 12, behavior: 'smooth' });
+      await wait(PACE.call);
+      if (after && prev) after();   // closed mid-run: the dashboard stays put
+      box.querySelector('.wk').remove(); box.insertAdjacentHTML('beforeend', `${card}<div class="dec">${dec}</div>`); box.classList.remove('working');
+      await wait(PACE.read);
+    };
+    const A = view({ per: 1, ch: 'all', dv: 'all' }), { t, l } = A, m = devOf(A, 'mobile'), k = devOf(A, 'desktop');
+    const rg = gr(t.r, l.r), sg2 = gr(t.s, l.s), ag = gr(t.aov, l.aov), cd = dp(t.cvr, l.cvr);
+    await step('Confirm what dropped.',
+      call(`Overview · ${A.short}`, 'get_kpis', [`<b>Revenue</b> ${money(t.r)} (${chg(rg)})`, `<b>Sessions</b> ${count(t.s)} (${chg(sg2)})`, `<b>Conversion</b> ${rate(t.cvr, 2)} (${pts(cd, 2)})`, `<b>Order value</b> ${money(t.aov)} (${chg(ag)})`]),
+      sg2 > -2 && Math.abs(ag) < 3 ? 'Traffic held and order value held, so revenue fell because fewer shoppers bought. Next: is it one device?' : `Revenue ${chg(rg)}, conversion ${pts(cd, 2)}. Next: is it one device?`,
+      () => hl([...sumRow('revenue'), ...sumRow('conversion')]));
+    const md = dp(m.t.cvr, m.l.cvr), kd = dp(k.t.cvr, k.l.cvr);
+    await step('Split it by device.',
+      call('Conversion by device', 'get_journey(device)', [`<b>Mobile</b> ${rate(m.t.cvr, 2)} (${pts(md, 2)})`, `<b>Desktop</b> ${rate(k.t.cvr, 2)} (${pts(kd, 2)})`]),
+      `It's mobile: desktop moved ${pts(kd, 2)}. Next: which step on mobile?`,
+      () => { st.dv = 'mobile'; render(); hl([$('[data-dv="mobile"]')]); });
+    const Mv = view({ per: 1, ch: 'all', dv: 'mobile' }), drop = Mv.drop;
+    const rest = Mv.steps.filter(x => x.key && x !== drop).sort((a, b) => a.d - b.d), nx = rest[0];
+    await step('Find the step that broke.',
+      call(`Mobile journey · ${A.short}`, 'get_journey(mobile)', Mv.steps.filter(x => x.key).map(x => `${x === drop ? '<b>' : ''}${esc(x.pair)}${x === drop ? '</b>' : ''} ${rate(x.rate)} (${pts(x.d)})`)),
+      `${esc(drop.pair)} fell ${Math.abs(drop.d).toFixed(1)} pt, the biggest move by far; next is ${esc(nx.pair.toLowerCase())} at ${pts(nx.d)}${nx.key === 'eng' ? ' (the bounce alert, a separate issue)' : ''}. Next: since when?`,
+      () => { st.tab = 'journey'; render(); hl([$('.fr.hot')]); });
+    const wk = Array.from({ length: 6 }, (_, i) => LAST - 5 + i).map(w => ({ wk: D.meta.weeks[w].wk, v: G('all', 'mobile', [w])[drop.key] }));
+    const prior = wk.slice(0, -1).map(x => x.v), now = wk[wk.length - 1];
+    await step('Check since when.',
+      call(`Mobile ${drop.pair.toLowerCase()} · last 6 weeks`, 'get_trend(mobile)', [wk.map(x => `W${x.wk} ${rate(x.v)}`).join(' · ')]),
+      `Between ${rate(Math.min(...prior))} and ${rate(Math.max(...prior))} for five weeks, then ${rate(now.v)} in W${now.wk}: it started this week. Next: what changed?`);
+    const ev = D.events.verify, share = ev.exit / ev.reach;
+    await step('Look for what changed that week.',
+      call(`Changes · W${now.wk}`, 'get_events(week)', [`<b>Release</b> ${esc(ev.from)}: ${esc(ev.what)}, ${esc(ev.device)} only`, `<b>Reached it</b> ${count(ev.reach)} · <b>left there</b> ${count(ev.exit)} (${rate(share, 0)})`, `<b>Median time on the step</b> ${ev.median_s} s`]),
+      `One change is logged for mobile checkout that week: the ${esc(ev.what)}, live ${esc(ev.from)}, and ${rate(share, 0)} of shoppers who reach it leave there. That makes it the likely cause, but weekly data can't date the break, so it needs a before/after check.`);
+
+    const lost = impact(m);
+    await step('Size what it costs.',
+      `<div class="ppa-call calc"><div class="h"><b>Calculation</b></div><div class="r">${count(m.t.c)} checkouts × (${rate(m.l.ordC)} − ${rate(m.t.ordC)}) × ${money(m.t.aov)} ≈ ${money(lost)}</div></div>`,
+      `About ${money(lost)} estimated at stake this week: what mobile would have sold had checkout held at last week's rate. A scenario, not a measured loss.`);
+    // self-check: the numbers behind the recommendation are re-computed from the raw sums, not read from the view
+    const T = G('all', 'all', [LAST]), Mo = G('all', 'mobile', [LAST]), Ml = G('all', 'mobile', [LAST - 1]), lost2 = Mo.c * (Ml.ordC - Mo.ordC) * Mo.aov;
+    const res = [[`Conversion = ${rate(T.cvr, 2)}`, rate(T.cvr, 2) === rate(t.cvr, 2)], [`Mobile ${drop.pair.toLowerCase()} = ${rate(Mo.ordC)}`, rate(Mo.ordC) === rate(drop.rate)], [`Revenue at stake = ${money(lost2)}`, money(lost2) === money(lost)]];
+    const ok = res.filter(r => r[1]).length, all = ok === res.length;
+    log.insertAdjacentHTML('beforeend', `<div class="ppa-rec"><div class="sn">Recommendation · ${n} of ${MAX} steps used</div><p>Investigate the mobile <b>${esc(ev.what)}</b>, and roll it back in a controlled way if it's confirmed as the cause: <b>${money(lost)}</b> a week estimated at stake.</p><div class="own"><span><b>Owner</b> Payments team</span><span><b>Next</b> compare completion before vs after ${esc(ev.from)} and weigh what the step protects, then decide; re-check mobile checkout next Monday</span></div>
+<details class="ppa-how"><summary class="${all ? 'ok' : 'bad'}">${all ? '✓' : '✗'} Self-check · ${ok} of ${res.length} numbers match the data</summary><div class="ppa-steps">${res.map(r => `<div class="${r[1] ? 'ok' : 'bad'}">${esc(r[0])}</div>`).join('')}</div></details><div class="btns"><button type="button" class="ppa-btn dark" data-dec="ok">Add to action plan</button><button type="button" class="ppa-btn" data-dec="no">Dismiss</button></div></div><button type="button" class="ppa-back" data-leave>← Back to questions</button>`);
+    const rb = log.querySelector('.ppa-rec'); log.scrollTo({ top: rb.offsetTop - 12, behavior: 'smooth' });
+    running = false;
+  }
+
   // ---------------------------------------------------------------- feedback loop (ratings stay in this browser)
   const readLS = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
   const writeLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } };
   const FB = 'ecom:feedback:v1', DEC_KEY = 'ecom:fb-decisions:v1';
   const REASONS = ['Wrong number', 'Not what I asked', 'Too vague', 'Other'];
-  const fbBar = i => `<div class="ppa-fb" data-fq="${i}"><span>Was this useful?</span><button type="button" data-rate="up" aria-label="Useful">👍</button><button type="button" data-rate="down" aria-label="Not useful">👎</button></div>`;
-  const fbForm = i => `<div class="ppa-fbf" data-fq="${i}"><div class="h">What went wrong?</div><div class="chips">${REASONS.map(r => `<button type="button" data-reason="${r}" aria-pressed="false">${r}</button>`).join('')}</div><textarea maxlength="200" placeholder="Optional: what did you expect?" aria-label="What did you expect?"></textarea><div class="row"><span>Stays in your browser · goes into this week's review</span><button type="button" class="send" disabled>Send</button></div></div>`;
+  const fbBar = (i, turn) => `<div class="ppa-fb" data-fq="${i}" data-turn="${turn || ''}"><span>Was this useful?</span><button type="button" data-rate="up" aria-label="Useful">👍</button><button type="button" data-rate="down" aria-label="Not useful">👎</button></div>`;
+  const fbForm = (i, turn) => `<div class="ppa-fbf" data-fq="${i}" data-turn="${turn || ''}"><div class="h">What went wrong?</div><div class="chips">${REASONS.map(r => `<button type="button" data-reason="${r}" aria-pressed="false">${r}</button>`).join('')}</div><textarea maxlength="200" placeholder="Optional: what did you expect?" aria-label="What did you expect?"></textarea><div class="row"><span>Stays in your browser · goes into this week's review</span><button type="button" class="send" disabled>Send</button></div></div>`;
   const fbThanks = () => `<div class="ppa-fbdone">✓ Thanks — logged. <button type="button" class="ppa-link" data-fbr>See what the owner sees → Feedback review</button></div>`;
-  function logFb(rec) {
-    const all = readLS(FB, []); all.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), ...rec }); writeLS(FB, all);
-    const b = $('[data-fbr-open]'); if (b) { b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 1600); }
+  function logFb(rec, quiet) {
+    const all = readLS(FB, []), id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); all.push({ id, at: Date.now(), ...rec }); writeLS(FB, all);
+    const b = $('[data-fbr-open]'); if (b && !quiet) { b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); setTimeout(() => b.classList.remove('pulse'), 1600); }
+    return id;
   }
+  // an answer as the user saw it, without the check list and stamp (kept short; it's stored in this browser)
+  function ansText(html) {
+    const tmp = document.createElement('div'); tmp.innerHTML = html;
+    tmp.querySelectorAll('.chk, .stamp').forEach(e => e.remove());
+    return (tmp.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+  }
+  const scopeText = sc => { const V = view(sc); return `${V.short} · ${sc.ch === 'all' ? 'all channels' : chName(sc.ch)} · ${DEVNAME[sc.dv]}`; };
+
+  // The synthetic week is one list of turns (a turn = one question asked). The tiles, the theme counts and the summary
+  // are all counted from it, so they can't disagree. Each entry: [theme, turns, rating, no answer, rephrased, checker flag].
   const REVIEW = {
-    wk: 41, headline: 'Most friction this week is about definitions, not wrong numbers.',
-    text: 'The eCom team asked <strong>52</strong> questions. The checker withheld <strong>1</strong> answer before anyone saw it; the bigger theme is <strong>4</strong> questions asking for last year, which this agent doesn\'t compare against. Two themes need a business decision before anyone can fix them.',
-    sig: { q: 52, prev: 47, up: 8, dn: 3, reph: 4, nodata: 7, flags: 1 },
-    rows: [
-      { theme: 'Asks for last year, not last week', ex: 'How is conversion vs last year?', src: '4 "not in this data"', n: 4, dg: 'def', dl: 'Definition gap?', sug: 'This agent compares with the prior period. Decide with the team whether vs last year belongs here or stays in the weekly report.', ai: 'def' },
-      { theme: 'Exit rate read as bounce', ex: "What's the exit rate on the checkout page?", src: '2 👎 · 1 rephrased', n: 3, dg: 'und', dl: 'Misread question', sug: 'Bounce and exit rate are different. Add exit rate per step to the journey, or say plainly that the agent reports bounce.', ai: 'fix' },
-      { theme: 'Wants paid social split by platform', ex: 'How much revenue did each social platform drive?', src: '3 "not in this data"', n: 3, dg: 'def', dl: 'Definition gap?', sug: 'Paid social is one channel here. Decide with the paid media team whether to split it by platform.', ai: 'def' },
-      { theme: 'Checker withheld an answer', ex: 'Which channel converts best?', src: '1 checker flag', n: 1, dg: 'bug', dl: 'Bug', sug: 'The draft called Email "best" by conversion while Paid search was higher. Fix the ranking rule and add a test.', ai: 'fix' },
+    wk: 41, prev: 47, headline: 'Most friction this week is about definitions, not wrong numbers.',
+    themes: [
+      { k: 'ly', say: 'questions asking for last year (not compared here)',
+ theme: 'Asks for last year, not last week', ex: 'How is conversion vs last year?', dg: 'def', dl: 'Definition gap?', sug: 'This agent compares with the prior period. Decide with the team whether vs last year belongs here or stays in the weekly report.', ai: 'def' },
+      { k: 'exit', say: 'questions reading exit rate as bounce', theme: 'Exit rate read as bounce', ex: "What's the exit rate on the checkout page?", dg: 'und', dl: 'Misread question', sug: 'Bounce and exit rate are different. Add exit rate per step to the journey, or say plainly that the agent reports bounce.', ai: 'fix' },
+      { k: 'soc', say: 'asks to split paid social by platform', theme: 'Wants paid social split by platform', ex: 'How much revenue did each social platform drive?', dg: 'def', dl: 'Definition gap?', sug: 'Paid social is one channel here. Decide with the paid media team whether to split it by platform.', ai: 'def' },
+      { k: 'chk', say: 'withheld answer', theme: 'Checker withheld an answer', ex: 'Which channel converts best?', dg: 'bug', dl: 'Bug', sug: 'The draft called Email "best" by conversion while Paid search was higher. Fix the ranking rule and add a test.', ai: 'fix' },
     ],
+    turns: [['ly', 3, null, 1, 0, 0], ['ly', 1, null, 1, 1, 0], ['exit', 2, 'down', 0, 0, 0], ['exit', 2, null, 0, 1, 0],
+      ['soc', 2, null, 1, 0, 0], ['soc', 1, null, 1, 1, 0], ['chk', 1, 'down', 0, 0, 1], [null, 8, 'up', 0, 0, 0], [null, 32, null, 0, 0, 0]],
     done: [{ t: 'Mobile and desktop mixed in one answer', d: 'fixed last week · answers now name the device · 1 regression test · 2 users told' },
       { t: 'Email opens shown for one device', d: 'fixed last week · opens and clicks only show for all devices · 1 regression test · 1 user told' }],
   };
   const DEC = [['fix', 'Fix now'], ['later', 'Later'], ['wont', "Won't fix"], ['def', 'Needs a definition']];
+  // the latest rating per turn (a turn can be rated once; older records without a turn count on their own)
+  const ratings = recs => { const m = new Map(); recs.filter(r => r.kind === 'up' || r.kind === 'down').forEach(r => m.set(r.turn || r.id, r)); return [...m.values()]; };
   function myRows(recs) {
-    return recs.filter(r => r.kind !== 'up').map(r => {
+    const turns = new Map(recs.filter(r => r.kind === 'ask').map(r => [r.id, r]));
+    return [...recs.filter(r => r.kind === 'nodata'), ...ratings(recs).filter(r => r.kind === 'down')].map(r => {
       const base = { key: r.id, you: true, n: 1, ex: r.q, note: r.note };
       if (r.kind === 'nodata') return { ...base, theme: 'Typed question with no answer', src: '"not in this data" reply', dg: 'scope', dl: 'Out of scope', sug: "Not in the agent's answers yet. Add it, or say so in the chat's scope note.", ai: 'later' };
       if (r.reason === 'Wrong number') {
-        const q = QS.find(x => x.q === r.q), clean = q && !/✗|Withheld/.test(answer(q.k));
-        return { ...base, theme: 'You flagged a wrong number', src: '1 👎', dg: clean ? 'def' : 'bug', dl: clean ? 'Definition gap?' : 'Bug',
-          sug: clean ? 'The checks were re-run and every number matches the page, so the gap is likely the definition you expected.' : 'The re-run found a number that does not match. Fix it and add a test.', ai: clean ? 'def' : 'fix' };
+        // a report, not a diagnosis: keep what was asked, answered and in which scope, re-run it there, and leave the cause to triage
+        const t = turns.get(r.turn), q = QS.find(x => x.q === r.q);
+        let rerun = 'The original scope was not recorded, so it is re-run in the current view only.';
+        if (t && q) { const a = answer(q.k, view(t.scope)); rerun = /Withheld/.test(a) ? 'Re-run in that scope, the answer now fails a check.' : ansText(a) === t.ans ? 'Re-run in that scope gives the same answer, and its checks pass.' : 'Re-run in that scope gives a different answer from the one you saw.'; }
+        return { ...base, theme: 'Reported discrepancy — pending triage', src: '1 👎 · Wrong number', dg: 'scope', dl: 'Pending triage', ai: null,
+          ctx: t ? `Answer you saw · ${scopeText(t.scope)}: "${t.ans.length > 180 ? t.ans.slice(0, 180) + '…' : t.ans}"` : '',
+          sug: `${rerun} Passing checks don't rule out a source, unit or denominator problem, so the owner traces it before naming a cause.` };
       }
+
       const m = { 'Not what I asked': ['und', 'Misread question', 'Add this wording to the routing examples and the test set.', 'fix'], 'Too vague': ['und', 'Answer too thin', 'Add the follow-up you needed to this answer.', 'later'], Other: ['scope', 'Needs triage', 'Read the note; one report is not a pattern yet.', 'later'] }[r.reason];
       return { ...base, theme: r.reason === 'Other' ? 'Other feedback' : `"${r.reason}"`, src: '1 👎', dg: m[0], dl: m[1], sug: m[2], ai: m[3] };
     });
   }
   function feedbackReview() {
-    const R = REVIEW, s2 = R.sig, recs = readLS(FB, []), dec = readLS(DEC_KEY, {});
-    const up = recs.filter(r => r.kind === 'up').length, dn = recs.filter(r => r.kind === 'down').length, nd = recs.filter(r => r.kind === 'nodata').length;
-    const mine = myRows(recs), rows = [...mine, ...R.rows.map((r, i) => ({ ...r, key: 'ecom-s' + i }))];
-    const you = n => (n ? ` · ${n} from you` : ''), qn = s2.q + nd, dq = s2.q - s2.prev;
+    const R = REVIEW, recs = readLS(FB, []), dec = readLS(DEC_KEY, {});
+    // one count over the turns: the synthetic week's, plus the ones asked and rated in this browser
+    const S = { q: 0, up: 0, dn: 0, nodata: 0, reph: 0, flags: 0 }, byTheme = {};
+    R.turns.forEach(([th, n, rt, nod, reph, flg]) => {
+      S.q += n; if (rt) S[rt === 'up' ? 'up' : 'dn'] += n; S.nodata += n * nod; S.reph += n * reph; S.flags += n * flg;
+      if (th) { const b = byTheme[th] || (byTheme[th] = { n: 0, dn: 0, nodata: 0, reph: 0, flags: 0 }); b.n += n; if (rt === 'down') b.dn += n; b.nodata += n * nod; b.reph += n * reph; b.flags += n * flg; }
+    });
+    const rated = ratings(recs), up = rated.filter(r => r.kind === 'up').length, dn = rated.filter(r => r.kind === 'down').length;
+    const nd = recs.filter(r => r.kind === 'nodata').length, asks = recs.filter(r => r.kind === 'ask'), held = asks.filter(r => r.withheld).length;
+    const srcOf = b => [b.nodata && `${b.nodata} "not in this data"`, b.flags && `${b.flags} checker flag${b.flags > 1 ? 's' : ''}`, b.dn && `${b.dn} 👎`, b.reph && `${b.reph} rephrased`].filter(Boolean).join(' · ');
+    const seedRows = R.themes.map(t => ({ ...t, key: 'ecom-' + t.k, n: byTheme[t.k].n, src: srcOf(byTheme[t.k]) })).sort((a, b) => b.n - a.n);
+    const mine = myRows(recs), rows = [...mine, ...seedRows];
+    const you = n => (n ? ` · ${n} from you` : ''), qn = S.q + asks.length + nd, dq = qn - R.prev, rn = S.up + up + S.dn + dn;
+    const big = seedRows.filter(r => r.n === seedRows[0].n), decide = seedRows.filter(r => r.ai === 'def').length;
+    const text = `The eCom team asked <strong>${S.q}</strong> questions. The checker withheld <strong>${S.flags}</strong> answer${S.flags === 1 ? '' : 's'} before anyone saw ${S.flags === 1 ? 'it' : 'them'}; the bigger theme${big.length > 1 ? 's are' : ' is'} ${words(big.map(r => `<strong>${r.n}</strong> ${esc(r.say)}`))}.
+ ${cap(['No', 'One', 'Two', 'Three', 'Four'][decide] || String(decide))} theme${decide === 1 ? ' needs' : 's need'} a business decision before anyone can fix ${decide === 1 ? 'it' : 'them'}.`;
     const tile = (l, v, d) => `<div><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
     const got = rows.filter(r => dec[r.key]), tally = got.length ? `You decided ${got.length} of ${rows.length}: ` + DEC.map(([k, l]) => [l, got.filter(r => dec[r.key] === k).length]).filter(x => x[1]).map(([l, n]) => `${n} ${l.toLowerCase()}`).join(' · ') : "Dashed = the agent's suggestion · click to decide";
     const row = r => `<div class="fbr-r${r.you ? ' you' : ''}">
-        <div><div class="th">${esc(r.theme)}</div><div class="ex">"${esc(r.ex)}"</div>${r.note ? `<div class="nt">Note: ${esc(r.note)}</div>` : ''}<span class="src">${esc(r.src)}</span>${r.you ? '<span class="src me">You · this browser</span>' : ''}</div>
+        <div><div class="th">${esc(r.theme)}</div><div class="ex">"${esc(r.ex)}"</div>${r.ctx ? `<div class="nt">${esc(r.ctx)}</div>` : ''}${r.note ? `<div class="nt">Note: ${esc(r.note)}</div>` : ''}
+<span class="src">${esc(r.src)}</span>${r.you ? '<span class="src me">You · this browser</span>' : ''}</div>
         <div class="cnt"><span>Count</span>${r.n}</div>
         <div><span class="dg ${r.dg}">${esc(r.dl)}</span><div class="sug">${esc(r.sug)}</div></div>
         <div class="dec">${DEC.map(([k, l]) => `<button type="button" data-dec="${k}" data-key="${esc(r.key)}"${r.ai === k ? ' class="ai"' : ''} aria-pressed="${dec[r.key] === k}">${l}</button>`).join('')}</div></div>`;
@@ -689,8 +835,8 @@
       <div class="fbr-loop">${[['1 · Log', 'Every answer, 👍/👎 and reason'], ['2 · Weekly pull', "All of the week's turns"], ['3 · Agent drafts', 'Prioritises, summarises, suggests a fix', 'ai'], ['4 · Business decides', "Fix now · Later · Won't fix · Needs a definition", 'you'], ['5 · Fix + test', 'Each fix becomes a regression test'], ['6 · Tell the user', '"The thing you flagged is fixed"']].map(([h, t, c]) => `<div${c ? ` class="${c}"` : ''}><b>${h}</b>${t}</div>`).join('')}</div>
       <div class="ins-mast"><span>Feedback review · W${R.wk} · eCom Site Journey Agent · synthetic week</span><span>${rows.length} themes${mine.length ? ` · ${mine.length} from you` : ''}</span></div>
       <h2 class="fbr-hl">${esc(R.headline)}</h2>
-      <p class="fbr-p">${R.text}</p>
-      <div class="fbr-sig">${tile('Questions', qn, `${dq >= 0 ? '+' : M}${Math.abs(dq)} vs W${R.wk - 1}${you(nd)}`)}${tile('👍 / 👎', `${s2.up + up} / ${s2.dn + dn}`, `1 in ${Math.round(qn / (s2.up + up + s2.dn + dn))} answers rated${you(up + dn)}`)}${tile('Rephrased', s2.reph, 'asked again in new words')}${tile('"Not in this data"', s2.nodata + nd, 'out of scope' + you(nd))}${tile('Checker flags', s2.flags, 'withheld before shown')}</div>
+      <p class="fbr-p">${text}</p>
+      <div class="fbr-sig">${tile('Questions', qn, `${dq >= 0 ? '+' : M}${Math.abs(dq)} vs W${R.wk - 1}${you(asks.length + nd)}`)}${tile('👍 / 👎', `${S.up + up} / ${S.dn + dn}`, `${rn ? `1 in ${Math.round(qn / rn)} answers rated` : 'none rated yet'}${you(up + dn)}`)}${tile('Rephrased', S.reph, 'asked again in new words')}${tile('"Not in this data"', S.nodata + nd, 'out of scope' + you(nd))}${tile('Checker flags', S.flags + held, 'withheld before shown' + you(held))}</div>
       <div class="fbr-h"><span>Ranked by the agent · you decide each row</span><span class="tally">${esc(tally)}</span></div>
       <div class="fbr-t"><div class="fbr-r hd"><div>Theme</div><div>Count</div><div>Diagnosis · suggested fix</div><div>Decision</div></div>${rows.map(row).join('')}</div>
       <div class="fbr-h"><span>Fixed last week · loop closed</span></div>
@@ -745,30 +891,36 @@
     $$('[data-dv]').forEach(b => b.setAttribute('aria-pressed', b.dataset.dv === st.dv));
     $('.ppa-ctx').innerHTML = `Showing <b>${esc(V.label)}</b> · ${esc(st.ch === 'all' ? 'all channels' : chName(st.ch))} · ${DEVNAME[st.dv]} · vs ${V.vs} · data as of ${dlab(D.meta.asOf)}`;
     $('.ppa-panel').innerHTML = st.tab === 'overview' ? overviewTab(V) : st.tab === 'journey' ? journeyTab(V) : productsTab(V);
-    if (!asked.size) log.innerHTML = sugHTML(); else { const h = log.querySelector('.hint'); if (h) h.outerHTML = sugHTML().split('</div>')[0] + '</div>'; }
+    if (saved == null) syncLog();   // during an agent run the panel shows the run; the chat catches up when it comes back
   }
+  function syncLog() { if (!asked.size) log.innerHTML = sugHTML(); else { const h = log.querySelector('.hint'); if (h) h.outerHTML = sugHTML().split('</div>')[0] + '</div>'; } }
   function openChat() { chat.classList.add('open'); chat.removeAttribute('aria-hidden'); $('.ppa-input input').focus(); }
   root.addEventListener('click', e => {
     const t = e.target;
     const tab = t.closest('[role=tab]'); if (tab) { st.tab = tab.dataset.tab; return render(); }
     const dvb = t.closest('[data-dv]'); if (dvb) { st.dv = dvb.dataset.dv; return render(); }
-    const inv = t.closest('[data-q]'); if (inv) { openChat(); return ask(+inv.dataset.q); }
-    if (t.closest('[data-ask]')) return openChat();
-    if (t.closest('.ppa-x')) { chat.classList.remove('open'); chat.setAttribute('aria-hidden', 'true'); $('[data-ask]').focus(); return; }
+    if (t.closest('[data-run]')) return investigate();
+    if (t.closest('[data-leave]')) return leaveRun();
+    const dec = t.closest('.ppa-rec [data-dec]');
+    if (dec) { dec.closest('.btns').outerHTML = dec.dataset.dec === 'ok' ? '<div class="done">✓ Added to this week\'s action plan · owner: Payments team. (Demo: nothing is sent.)</div>' : '<div class="done muted">Dismissed — the agent will look again next week.</div>'; return; }
+    const inv = t.closest('[data-q]'); if (inv) { leaveRun(); openChat(); return ask(+inv.dataset.q); }
+    if (t.closest('[data-ask]')) { leaveRun(); return openChat(); }
+    if (t.closest('.ppa-x')) { chat.classList.remove('open'); chat.setAttribute('aria-hidden', 'true'); restore(); $('[data-ask]').focus(); return; }
     if (t.closest('[data-reset]')) return resetChat();
     const q = t.closest('.ppa-sugtop [data-i]'); if (q && !q.disabled) return ask(+q.dataset.i);
     const r = t.closest('[data-rate]');
     if (r) {
       const box = r.closest('.ppa-fb'), i = +box.dataset.fq;
-      if (r.dataset.rate === 'up') { logFb({ kind: 'up', q: QS[i].q }); box.outerHTML = fbThanks(); return; }
+      if (r.dataset.rate === 'up') { logFb({ kind: 'up', q: QS[i].q, turn: box.dataset.turn || null }); box.outerHTML = fbThanks(); return; }
       box.querySelectorAll('[data-rate]').forEach(x => x.classList.toggle('on', x === r));
-      if (!(box.nextElementSibling && box.nextElementSibling.classList.contains('ppa-fbf'))) box.insertAdjacentHTML('afterend', fbForm(i));
+      if (!(box.nextElementSibling && box.nextElementSibling.classList.contains('ppa-fbf'))) box.insertAdjacentHTML('afterend', fbForm(i, box.dataset.turn));
       return;
     }
     const chip = t.closest('.ppa-fbf [data-reason]');
     if (chip) { chip.parentElement.querySelectorAll('[data-reason]').forEach(x => x.setAttribute('aria-pressed', x === chip)); chip.closest('.ppa-fbf').querySelector('.send').disabled = false; return; }
     const sb = t.closest('.ppa-fbf .send');
-    if (sb) { const f = sb.closest('.ppa-fbf'), i = +f.dataset.fq; logFb({ kind: 'down', q: QS[i].q, reason: f.querySelector('[data-reason][aria-pressed=true]').dataset.reason, note: f.querySelector('textarea').value.trim().slice(0, 200) }); f.previousElementSibling.remove(); f.outerHTML = fbThanks(); return; }
+    if (sb) { const f = sb.closest('.ppa-fbf'), i = +f.dataset.fq; logFb({ kind: 'down', q: QS[i].q, turn: f.dataset.turn || null, reason:
+ f.querySelector('[data-reason][aria-pressed=true]').dataset.reason, note: f.querySelector('textarea').value.trim().slice(0, 200) }); f.previousElementSibling.remove(); f.outerHTML = fbThanks(); return; }
     if (t.closest('[data-fbr]') || t.closest('[data-fbr-open]')) return openModal('fbr', $('[data-fbr-open]'));
     if (t.closest('[data-ins]')) return openModal('ins', t.closest('[data-ins]'));
     if (t.closest('[data-notes]')) { e.stopPropagation(); $('.ppa-notes').classList.toggle('open'); return; }

@@ -62,7 +62,7 @@ STORIES = {
         cover={"harbor": (10.0, 2.6), "straight": (9.0, 19.0)},
         new_rate={"harbor": 0.56}, genz={"harbor": 0.47},
     ),
-    "uk": dict(  # a mild autumn: knitwear falls and stock builds; online grows while stores fall
+    "uk": dict(  # knitwear falls and stock builds while outerwear grows; online grows while stores fall
         trend=1.00,
         fam={"cloud": (0.95, 0.74), "fisher": (0.97, 0.80), "merino": (0.98, 0.86), "field": (1.04, 1.16)},
         launch=("harbor", 6, 0.020),
@@ -387,7 +387,7 @@ def chat(region, d, cfg):
               [chg(excl_new=True), chg(cat="Outerwear")],
               [S(group_by="family"), S(exclude_new=True), S(category="Outerwear")]),
             A("What should I reorder?",
-              f"The Harbor Parka. It has {{}} weeks of supply left, below the {lo}-week floor, and is selling about {{}} units a week. Around {{}} units brings it back to 8 weeks.",
+              f"The Harbor Parka. It has {{}} weeks of supply left, below the {lo}-week floor, and is selling about {{}} units a week. That leaves a gap of about {{}} units to an 8-week target, before any open orders or inbound stock, which this data doesn't hold.",
               [({"m": "wos", "fam": "harbor"}, "weeks"), ({"m": "avg_units", "fam": "harbor"}, "int"),
                ({"m": "reorder", "fam": "harbor", "target": 8}, "int")],
               [INV(), INV(family="harbor")]),
@@ -443,7 +443,7 @@ def chat(region, d, cfg):
            ({"m": "share", "num": "new", "den": "orders", "fam": "mini", "p": "l4"}, "pct")],
           [S(category="Bags", group_by="family"), CUS(family="mini", period="l4")]),
         A("Where is stock thin?",
-          f"The Mini Crossbody has {{}} weeks of supply, under the {lo}-week floor. It sells about {{}} units a week; around {{}} units would bring it back to 8 weeks.",
+          f"The Mini Crossbody has {{}} weeks of supply, under the {lo}-week floor. It sells about {{}} units a week; the gap to an 8-week target is about {{}} units, before any open orders or inbound stock, which this data doesn't hold.",
           [({"m": "wos", "fam": "mini"}, "weeks"), ({"m": "avg_units", "fam": "mini"}, "int"),
            ({"m": "reorder", "fam": "mini", "target": 8}, "int")],
           [INV(), INV(family="mini")]),
@@ -451,8 +451,8 @@ def chat(region, d, cfg):
           "They are the soft spot: {} vs last year, while stores are {} and online {}.",
           [chg(ch="Department stores"), chg(ch="Stores"), chg(ch="Online")],
           [S(group_by="channel")]),
-        A("Who are we losing in department stores?",
-          "Older customers. Gen X and Boomer orders in department stores are {} vs last year, while Gen Z orders there are {}. Across the brand, Gen Z new customers are {}.",
+        A("Whose orders are falling in department stores?",
+          "Older customers', faster than the rest. Gen X and Boomer orders in department stores are {} vs last year, while Gen Z orders there are {}. Across the brand, Gen Z new customers are {}.",
           [({"m": "chg", "of": ["ord_gx", "ord_bb"], "ch": "Department stores"}, "pct_signed"), ({"m": "chg", "of": "ord_gz", "ch": "Department stores"}, "pct_signed"),
            ({"m": "chg", "of": "genz"}, "pct_signed")],
           [CUS(by="generation", channel="Department stores"), CUS(by="generation")]),
@@ -573,11 +573,13 @@ def brief(region, d, cfg):
             actions=[
                 {"t": "Chase the Harbor Parka before it sells out.",
                  "b": f"{n(wos(h), 'weeks')} weeks of cover against a {lo}-week floor, selling about {n({'m': 'avg_units', 'fam': h}, 'int')} a week. "
-                      f"Reorder about {n({'m': 'reorder', 'fam': h, 'target': 8}, 'int')} units to get back to 8 weeks.",
+                      f"The gap to an 8-week target is about {n({'m': 'reorder', 'fam': h, 'target': 8}, 'int')} units — indicative: the buyer nets off open POs "
+                      f"and inbound, and checks lead time and size mix, before raising the order.",
                  "g": ["Lever · Inventory", "Direction · Buy up", "Target · 8 weeks of cover"]},
                 {"t": "Stop feeding Weekend Straight.",
                  "b": f"{n(wos(st), 'weeks')} weeks of cover against a {hi}-week ceiling, with units {n(chg('units', fam=st), 'pct_signed')} vs LY. "
-                      f"About {n({'m': 'excess', 'fam': st, 'target': 8}, 'int')} units sit above an 8-week level — hold open receipts.",
+                      f"About {n({'m': 'excess', 'fam': st, 'target': hi}, 'int')} units sit above the {hi}-week ceiling, and "
+                      f"{n({'m': 'excess', 'fam': st, 'target': 8}, 'int')} above the 8-week target — hold open receipts until it is back under the ceiling.",
                  "g": ["Lever · Open-to-buy", "Direction · Hold", f"Target · under {hi} weeks"]},
                 {"t": "Turn the parka's new customers into repeat ones.",
                  "b": f"{n({'m': 'share', 'num': 'sales_new', 'den': 'sales', 'fam': h}, 'pct')} of Harbor Parka sales came from first-time customers, against "
@@ -611,9 +613,10 @@ def brief(region, d, cfg):
         assert x(wos(cl)) > hi and x(wos(fi)) > hi and x(chg(excl_cat=k)) > 0
         assert x(chg("new", ch="Online")) > 0 > x(chg("new", ch="Stores")) and x(achg()) > 0 > x(chg("units"))
         assert x(chg("units", fam=cl)) < -10
+        assert x(chg(cat=o)) > 0 and x(con(cat=o)) > 0  # headline: Outerwear grows
         cl_price = x(achg(fam=cl))
         out = dict(
-            headline=f"A mild autumn is hitting knitwear and stores — <em>Knitwear</em> is {n(chg(cat=k), 'pct_signed')} and Cloud Crew stock is piling up, while Online keeps growing.",
+            headline=f"Knitwear and stores are pulling the week down — <em>Knitwear</em> is {n(chg(cat=k), 'pct_signed')} and Cloud Crew stock is piling up, while Outerwear and Online grow.",
             deck=f"Net sales were {n(S, 'money')}, {n(chg(), 'pct_signed')} vs LY — a little better than {n(chg(p='p4'), 'pct_signed')} over the prior four weeks. "
                  f"<em>Knitwear</em> is the biggest drag at {n(con(cat=k), 'pts')}; Outerwear offsets {n(con(cat=o), 'pts')}. "
                  f"By channel the week splits in two: Stores {n(chg(ch='Stores'), 'pct_signed')}, Online {n(chg(ch='Online'), 'pct_signed')}.",
@@ -623,23 +626,26 @@ def brief(region, d, cfg):
                 f"Stores take {n(con(ch='Stores'), 'pts')} while Online adds {n(con(ch='Online'), 'pts')}, up from {n(chg(ch='Online', p='p4'), 'pct_signed')} over the prior four weeks.",
             notes=["Knitwear and Outerwear pull in opposite directions.",
                    "Stores and Online are moving apart, and the gap is widening.",
-                   f"Returning customers take {n(ret, 'pts')}; new customers add {n(con(of='sales_new'), 'pts')}, mostly online — "
+                   f"Sales to returning customers take {n(ret, 'pts')}; new customers add {n(con(of='sales_new'), 'pts')}, mostly online — "
                    f"new customers {n(chg('new', ch='Online'), 'pct_signed')} online, {n(chg('new', ch='Stores'), 'pct_signed')} in stores.",
                    f"Fewer, pricier items: AUR {n(achg(), 'pct_signed')} on units {n(chg('units'), 'pct_signed')}."],
             actions=[
                 {"t": "Cut Cloud Crew receipts.",
                  "b": f"{n(wos(cl), 'weeks')} weeks of cover against a {hi}-week ceiling, with units {n(chg('units', fam=cl), 'pct_signed')} vs LY. "
-                      f"About {n({'m': 'excess', 'fam': cl, 'target': 8}, 'int')} units sit above an 8-week level.",
+                      f"About {n({'m': 'excess', 'fam': cl, 'target': hi}, 'int')} units sit above the {hi}-week ceiling, and "
+                      f"{n({'m': 'excess', 'fam': cl, 'target': 8}, 'int')} above the 8-week target.",
                  "g": ["Lever · Open-to-buy", "Direction · Cut", f"Target · under {hi} weeks"]},
                 {"t": "Test a markdown on Fisherman Cardigan before it follows.",
                  "b": f"{n(wos(fi), 'weeks')} weeks of cover, also over the {hi}-week ceiling, with sales {n(chg(fam=fi), 'pct_signed')} vs LY.",
                  "g": ["Lever · Markdown", "Direction · Test", f"Target · under {hi} weeks"]},
-                {"t": "Put the next marketing pound into Online.",
+                {"t": "Test more Online spend before moving budget.",
                  "b": f"Online is {n(chg(ch='Online'), 'pct_signed')} vs LY, up from {n(chg(ch='Online', p='p4'), 'pct_signed')} over the prior four weeks, "
-                      f"and now brings {n({'m': 'mix', 'ch': 'Online'}, 'pct')} of sales.",
-                 "g": ["Lever · Channel mix", "Direction · Shift spend", "Target · keep Online growing"]},
+                      f"and now brings {n({'m': 'mix', 'ch': 'Online'}, 'pct')} of sales. Growth alone doesn't show what extra spend would add — "
+                      f"a holdout test does, before the next pound moves.",
+                 "g": ["Lever · Channel mix", "Direction · Test", "Target · incremental sales per pound"]},
             ],
-            bottom="Weather explains the knitwear; it doesn't explain the stores. If Online keeps taking share once the cold arrives, the store plan needs rethinking, not waiting out.",
+            bottom="Knitwear is down while Outerwear is up, so a mild autumn is a hypothesis to check against regional weather, not the explanation. "
+                   "The stores gap is the bigger question: if Online keeps taking share, the store plan needs rethinking, not waiting out.",
             drills=[
                 drill("What would the week look like without Knitwear?", f"{n(chg(excl_cat=k), 'pct_signed')} vs LY.",
                       f"{n({**S, 'excl_cat': k}, 'money')} against {n(SLY(excl_cat=k), 'money')} last year. The rest of the range is growing; Knitwear alone turns the week negative.",
@@ -677,18 +683,19 @@ def brief(region, d, cfg):
                 f"The Mini Crossbody is speeding up: {n(chg(fam=mi), 'pct_signed')} against {n(chg(fam=mi, p='p4'), 'pct_signed')} over the prior four weeks.",
             notes=["One bag offsets denim.",
                    "Department stores lose what Stores gain.",
-                   f"Returning customers take {n(ret, 'pts')}; in department stores, Gen X and Boomer orders are {n(chg(old, ch=ds), 'pct_signed')}.",
+                   f"Sales to returning customers take {n(ret, 'pts')}; in department stores, Gen X and Boomer orders are {n(chg(old, ch=ds), 'pct_signed')}.",
                    f"The drop is volume: units {n(chg('units'), 'pct_signed')}, AUR {n(achg(), 'pct_signed')}."],
             actions=[
-                {"t": "Reorder the Mini Crossbody now.",
+                {"t": "Size a Mini Crossbody reorder now.",
                  "b": f"{n(wos(mi), 'weeks')} weeks of cover against a {lo}-week floor, selling about {n({'m': 'avg_units', 'fam': mi}, 'int')} a week. "
-                      f"Order about {n({'m': 'reorder', 'fam': mi, 'target': 8}, 'int')} units to get back to 8 weeks.",
+                      f"The gap to an 8-week target is about {n({'m': 'reorder', 'fam': mi, 'target': 8}, 'int')} units — indicative: the buyer nets off open POs "
+                      f"and inbound, and checks lead time and size mix, before raising the order.",
                  "g": ["Lever · Inventory", "Direction · Buy up", "Target · 8 weeks of cover"]},
                 {"t": "Plan denim to the trend, not to last year.",
                  "b": f"Denim is {n(chg(cat=dn), 'pct_signed')} vs LY and {n(chg(cat=dn, p='p4'), 'pct_signed')} over the prior four weeks. Stock is still in range "
                       f"({n(wos(st), 'weeks')} and {n(wos(wi), 'weeks')} weeks), so fix the next buy rather than mark down.",
                  "g": ["Lever · Buy plan", "Direction · Cut depth", "Target · plan at the current run-rate"]},
-                {"t": "Win back older shoppers in department stores.",
+                {"t": "Find out why older shoppers buy less in department stores.",
                  "b": f"Gen X and Boomer orders there are {n(chg(old, ch=ds), 'pct_signed')} vs LY, against {n(chg('orders', ch=ds), 'pct_signed')} for all department-store orders.",
                  "g": ["Lever · Assortment", "Direction · Retain", "Target · back to flat vs LY"]},
             ],
@@ -717,31 +724,40 @@ def brief(region, d, cfg):
 # What the production feedback agent drafts each Monday from the logged turns and ratings: themes ranked,
 # diagnosed, with a suggested decision for the business reviewer. The week is synthetic; the visitor's own
 # ratings are added in the browser. dg = diagnosis class, ai = the agent's suggested decision.
-REVIEW = {
-    "na": dict(hero="Harbor Parka", sig=[148, 11, 5, 9, 6, 1], n=[7, 4, 6, 1, 3], prev=148 - 12),
-    "uk": dict(hero="Cloud Crew", sig=[96, 7, 4, 6, 5, 1], n=[5, 3, 5, 1, 2], prev=96 - 8),
-    "jp": dict(hero="Mini Crossbody", sig=[121, 9, 3, 7, 4, 1], n=[6, 2, 4, 1, 3], prev=121 + 5),
+REVIEW = {  # q = questions, up = 👍; each theme lists the feedback events behind it (dn = 👎, reph = rephrased, nodata, flag)
+    "na": dict(hero="Harbor Parka", q=148, up=11, prev=148 - 12,
+               c=[dict(dn=4, reph=3), dict(reph=3, dn=1), dict(nodata=6), dict(flag=1), dict(reph=3)]),
+    "uk": dict(hero="Cloud Crew", q=96, up=7, prev=96 - 8,
+               c=[dict(dn=3, reph=2), dict(reph=2, dn=1), dict(nodata=5), dict(flag=1), dict(reph=2)]),
+    "jp": dict(hero="Mini Crossbody", q=121, up=9, prev=121 + 5,
+               c=[dict(dn=2, reph=4), dict(reph=1, dn=1), dict(nodata=4), dict(flag=1), dict(reph=2)]),
 }
+SRC = dict(dn="👎", reph="rephrased", nodata="“no data” replies", flag="checker flag")
 
 
 def review(region, d):
     r = REVIEW[region]
-    q, up, dn, reph, nodata, flags = r["sig"]
-    n = r["n"]
+    q, up, comp = r["q"], r["up"], r["c"]
+    # every tile is the sum of the theme rows' events, so the review reconciles by construction
+    tot = {k: sum(c.get(k, 0) for c in comp) for k in SRC}
+    dn, reph, nodata, flags = tot["dn"], tot["reph"], tot["nodata"], tot["flag"]
+    n = [sum(c.values()) for c in comp]
+    src = lambda c: " · ".join(f"{v} {SRC[k] if k != 'flag' or v == 1 else 'checker flags'}" for k, v in c.items())
     hero = r["hero"]
     rows = [
-        dict(theme="Month names read as “last 4 weeks”", ex="How did October go?", src=f"{n[0] - 2} 👎 · 2 rephrased", n=n[0],
+        dict(theme="Month names read as “last 4 weeks”", ex="How did October go?", src=src(comp[0]), n=n[0],
              dg="und", dl="Misread period", sug="Map month names to the fiscal calendar before choosing a period.", ai="fix"),
-        dict(theme="“Sell-through” answered as weeks of supply", ex=f"What's sell-through on the {hero}?", src=f"{n[1] - 1} rephrased · 1 👎", n=n[1],
+        dict(theme="“Sell-through” answered as weeks of supply", ex=f"What's sell-through on the {hero}?", src=src(comp[1]), n=n[1],
              dg="def", dl="Definition gap", sug="No agreed formula yet. Proposed: units sold ÷ (units sold + on hand).", ai="def"),
-        dict(theme="Store-level questions", ex=f"Which stores sold the most {hero}?", src=f"{n[2]} “no data” replies", n=n[2],
+        dict(theme="Store-level questions", ex=f"Which stores sold the most {hero}?", src=src(comp[2]), n=n[2],
              dg="scope", dl="Out of scope", sug="Data is region-level. Add store grain, or say so in “What it covers”.", ai="later"),
-        dict(theme="Gen Z share quoted for the wrong period", ex="Gen Z share of new customers, last 13 weeks?", src="1 checker flag", n=n[3],
+        dict(theme="Gen Z share quoted for the wrong period", ex="Gen Z share of new customers, last 13 weeks?", src=src(comp[3]), n=n[3],
              dg="bug", dl="Bug", sug="Period not passed to get_customers. Fix, and add a 13-week test case.", ai="fix"),
-        dict(theme="“Chase” not understood as reorder", ex="Which styles should I chase?", src=f"{n[4]} rephrased", n=n[4],
+        dict(theme="“Chase” not understood as reorder", ex="Which styles should I chase?", src=src(comp[4]), n=n[4],
              dg="und", dl="Vocabulary", sug="Add buyer synonyms: chase, top up, re-buy → reorder.", ai="fix"),
     ]
-    assert n[0] == max(n) and q > up + dn
+    assert n[0] == max(n) and q > up + dn and flags == 1  # headline text: "Only 1 answer had a number the checker flagged"
+    assert sum(x["n"] for x in rows) == dn + reph + nodata + flags  # theme counts == tile totals
     third = next(c for c in d["channels"] if c not in ("Stores", "Online"))
     return dict(
         wk=d["weeks"][-1]["wk"],

@@ -24,7 +24,6 @@
 <link rel="stylesheet" href="ecom.css">
 </head>
 <body>
-<div class="placeholder-note">Synthetic data · fictional brand</div>
 <header class="nav">
   <div class="wrap">
     <a class="logo" href="../../">freya.li<span class="cursor" aria-hidden="true"></span></a>
@@ -40,32 +39,25 @@
 </header>
 
 <main>
-<section class="page-head">
+<section class="page-head compact">
   <div class="wrap">
     <div class="crumb"><a href="../../#agents">AI agent projects</a> / eCom Site Journey Agent</div>
     <div class="kicker">eCommerce</div>
     <h1>Where shoppers drop off — and why</h1>
-    <p class="lede">A weekly agent for the eCommerce team: it follows shoppers from the email to the order, finds the step where they leave, and explains why — site, email and product in one place.</p>
-    <dl class="meta">
-      <div><dt>Audience</dt><dd>eCommerce team<small>the people it was built for</small></dd></div>
-      <div><dt>Cadence</dt><dd>Every Monday<small>part of the weekly reporting</small></dd></div>
-      <div><dt>One place</dt><dd>Site · email · product<small>reports that used to live apart</small></dd></div>
-      <div><dt>Chatbot</dt><dd>Cited answers<small>every figure checked before it shows</small></dd></div>
-    </dl>
+    <p class="lede">Follows shoppers from the email to the order, finds the step where they leave, and explains why.</p>
+    <p class="proof"><span><b>eCommerce team</b>, every Monday</span><span><b>Site · email · product</b> in one place</span></p>
   </div>
 </section>
 
 <section class="try">
   <div class="wrap">
-    <div class="try-head">
-      <h2>Try it <span class="try-dur">· 30 seconds</span></h2>
-      <ol class="try-steps" aria-label="Three things to try">
-        <li><button type="button" data-step="1"><i>1</i><span><b>Read the weekly brief</b><small>Open Weekly Insights: the brief, what to fix first, and every number re-checked.</small></span><em aria-hidden="true">→</em></button></li>
-        <li><button type="button" data-step="2"><i>2</i><span><b>Ask the agent why checkout dropped</b><small>Opens the chat from the checkout alert: which step broke, since when, and why.</small></span><em aria-hidden="true">→</em></button></li>
-        <li><button type="button" data-step="3"><i>3</i><span><b>See what the owner sees</b><small>The weekly feedback review the business team signs off. Rate an answer 👍 / 👎 and it's added here.</small></span><em aria-hidden="true">→</em></button></li>
-      </ol>
-      <p class="try-note">Or explore on your own: switch device, period and channel, and move between the three tabs. Every number is computed in your browser from synthetic data for a fictional brand.</p>
-    </div>
+    <div class="try-root">
+    <ol class="try-steps" aria-label="Three things to try">
+      <li><button type="button" data-step="inv"><i>1</i><span><b>Revenue is down 13% this week. Why?</b><small>Traffic is up. Watch the agent trace the drop, check the evidence, and recommend a fix.</small></span><em aria-hidden="true">→</em></button></li>
+      <li><button type="button" data-step="1"><i>2</i><span><b>Read the weekly brief</b><small>Open Weekly Insights: what broke, what to fix first, and who owns it.</small></span><em aria-hidden="true">→</em></button></li>
+      <li><button type="button" data-step="2"><i>3</i><span><b>Ask the agent, then rate the answer</b><small>“Where in the funnel are we losing the most shoppers?” Your 👍 / 👎 goes straight into the feedback review the owner signs off each week.</small></span><em aria-hidden="true">→</em></button></li>
+    </ol>
+
     <div class="ppa ecom" id="ecom" data-base=".">
       <div class="ppa-head">
         <div class="ppa-top">
@@ -104,10 +96,10 @@
         <h4>Data notes</h4>
         <ul>
           <li>Synthetic data from a seeded Python script, for a fictional brand: 17 fiscal weeks of sessions and journey steps by channel and device, every email send, landing pages and 14 products.</li>
-          <li><b>Step %</b> = share of the step before. <b>Bounce</b> = sessions that were not engaged (under 10 seconds, one page, no conversion), as in GA4. <b>Cart abandonment</b> = sessions with an add-to-cart that don't buy. <b>Checkout completion</b> = purchases ÷ sessions that started checkout.</li>
+          <li><b>Step %</b> = share of the step before. <b>Bounce</b> = sessions that were not engaged (under 10 seconds, one page, no conversion), as in GA4. <b>Cart abandonment</b> = sessions with an add-to-cart that don't buy. <b>Checkout completion</b> = purchases ÷ sessions that started checkout. <b>Add-to-cart rate</b> = sessions with an add-to-cart ÷ sessions on Journey, and add-to-carts ÷ page views on Products.</li>
           <li>Every comparison is with the prior period of the same length: last week, or the prior 4 weeks. Last year isn't in this agent.</li>
           <li><b>Email.</b> Open rate = opens ÷ delivered; click-to-open = clicks ÷ opens. Delivered, opens and clicks aren't split by device, so the email steps show for All devices only. Site results are matched to each send on its campaign tag.</li>
-          <li>Landing pages and products read all channels; they follow the Device and Period filters.</li>
+          <li>Landing pages and products read all channels; they follow the Device and Period filters. A page's top source comes from a page × channel table that adds up to every channel's sessions, so it follows them too.</li>
           <li>A release note, a stock-out, a campaign link and a review theme come from a small events file — the facts a real agent reads from other systems.</li>
           <li>Summaries, alerts and Weekly Insights are written by rules over the same sums. In production an LLM writes the prose and a checker verifies every number.</li>
           <li><b>Chatbot.</b> Answers to the six suggested questions are built in the browser from the view you have selected, then checked before they show. A typed question that matches one gets the same answer; anything else gets "not in this data". This public page has no model, because it can't safely hold an API key.</li>
@@ -116,7 +108,8 @@
       </div>
 
       <aside class="ppa-chat" aria-label="Ask the agent" aria-hidden="true">
-        <div class="ppa-chat-h"><div><span class="spk">✦</span> <b>Ask the agent</b><small>Answers from this data only · every number re-checked</small><button type="button" class="ppa-fbr-link" data-fbr-open><span class="ic" aria-hidden="true">↺</span>Feedback review<span class="n">Owner view</span></button></div><div class="ppa-chat-btns"><button type="button" class="ppa-clear" data-reset title="Clear the conversation" aria-label="Clear the conversation">⟳ Clear</button><button type="button" class="ppa-x" aria-label="Close">×</button></div></div>
+        <div class="ppa-chat-h"><div><span class="spk">✦</span> <b>Ask the agent</b><small>Answers from this data only · every figure cited</small>
+<button type="button" class="ppa-fbr-link" data-fbr-open><span class="ic" aria-hidden="true">↺</span>Feedback review<span class="n">Owner view</span></button></div><div class="ppa-chat-btns"><button type="button" class="ppa-clear" data-reset title="Clear the conversation" aria-label="Clear the conversation">⟳ Clear</button><button type="button" class="ppa-x" aria-label="Close">×</button></div></div>
         <div class="ppa-log" aria-live="polite"></div>
         <form class="ppa-input" autocomplete="off"><input type="text" name="q" maxlength="200" placeholder="Ask about traffic, the funnel, email or products…" aria-label="Ask the agent a question"><button type="submit" aria-label="Send">↑</button></form>
         <div class="cfoot">Grounded in this data only · questions, answers and your feedback are recorded so the agent can be improved</div>
@@ -133,25 +126,25 @@
         </div>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="story-sec">
-  <div class="wrap grid">
-    <h2>The problem</h2>
-    <div class="prose">
-      <p>The eCommerce team's Monday started with several separate reports — site traffic, the funnel, email results, product performance — each in its own tool. Answering "why did revenue drop?" meant lining them up by hand.</p>
-      <p>They needed <b>one place that follows the shopper from the email to the order</b>, finds the step that broke, and says why.</p>
     </div>
   </div>
 </section>
 
+
+
 <section class="story-sec">
   <div class="wrap grid">
-    <h2>My role</h2>
+    <h2>What I built</h2>
     <div class="prose">
-      <p>I designed how the agent reads the journey: which steps it follows from the email to the order, how each rate is defined, the rules that find the biggest drop and explain it, and the guardrails on the chatbot.</p>
-      <p>It runs on <b>the same framework as the Product Performance Agent</b> — a new domain, without a new code base.</p>
+      <p>The eCommerce team's Monday started with several separate reports — site traffic, the funnel, email results, product performance — each in its own tool. Answering "why did revenue drop?" meant lining them up by hand. They needed <b>one place that follows the shopper from the email to the order</b>, finds the step that broke, and says why.</p>
+      <p>I designed how the agent reads the journey: which steps it follows from the email to the order, how each rate is defined, the rules that find the biggest drop and explain it, and the guardrails on the chatbot. It runs on <b>the same framework as the Product Performance Agent</b> — a new domain, without a new code base.</p>
+      <p>The team now starts its weekly reporting from one view: the brief says what broke and who should fix it, and a follow-up question gets an answer in seconds.</p>
+      <dl class="meta">
+        <div><dt>Audience</dt><dd>eCommerce team<small>the people it was built for</small></dd></div>
+        <div><dt>Cadence</dt><dd>Every Monday<small>part of the weekly reporting</small></dd></div>
+        <div><dt>One place</dt><dd>Site · email · product<small>reports that used to live apart</small></dd></div>
+        <div><dt>Chatbot</dt><dd>Cited answers<small>every figure checked before it shows</small></dd></div>
+      </dl>
     </div>
   </div>
 </section>
@@ -164,9 +157,10 @@
         <li><div><b>Weekly refresh</b><span>Site sessions, email sends and product data land in the warehouse: one row per week, channel and device.</span></div></li>
         <li><div><b>One journey</b><span>Email delivered → opened → clicked joins the site journey on each send's campaign tag, so email and site read as one funnel.</span></div></li>
         <li><div><b>Find the break</b><span>Rules compare every step with the prior period, find the biggest drop, and split it by device, channel and landing page.</span></div></li>
-        <li><div><b>Explain it</b><span>The few facts other systems hold — a release, a stock-out, a campaign link — are matched to the break, so the summary says why, not just where.</span></div></li>
+        <li><div><b>Explain it</b><span>The few facts other systems hold — a release, a stock-out, a campaign link — are matched to the break, so the summary names the likely cause to check, not just where.</span></div></li>
+        <li><div><b>Agentic loop</b><span>When an alert fires, an agent investigates it step by step — device, journey step, trend, then what changed that week — choosing each next step from a fixed tool menu, and proposes a fix for a person to approve. It is the same loop as the Product Performance Agent's, on the same framework.</span></div></li>
         <li><div><b>Weekly Insights</b><span>Every Monday the agent writes the brief: what moved, why, and what to fix first, with an owner for each fix.</span></div></li>
-        <li><div><b>Chatbot</b><span>Answers come only from this data, and every figure is cited to where it appears on the page. A checker confirms the numbers, direction words and rankings before an answer is shown.</span></div></li>
+        <li><div><b>Chatbot</b><span>Answers come only from this data, and every figure is cited to where it appears on the page. A checker confirms the citations, direction words and rankings before an answer is shown; it checks the figures and wording, not whether the explanation is right.</span></div></li>
         <li><div><b>Feedback loop</b><span>Every answer can be rated, with a reason. Each week the agent groups the feedback and drafts fixes, the owner decides, and every fix becomes a regression test.</span></div></li>
       </ol>
       <div class="arch" aria-label="Architecture">
@@ -180,15 +174,6 @@
   </div>
 </section>
 
-<section class="story-sec">
-  <div class="wrap grid">
-    <h2>Outcome</h2>
-    <div class="prose">
-      <p><b>One place for the eCom team's Monday.</b> The site, email and product reports that used to live apart now sit in one view, so the weekly reporting starts from the same numbers — less time assembling, faster decisions.</p>
-      <p>The team uses it every Monday as part of its weekly reporting: the brief says what broke and who should fix it, and a follow-up question gets an answer in seconds.</p>
-    </div>
-  </div>
-</section>
 
 <div class="wrap">
   <nav class="pager" aria-label="More agents">
@@ -203,9 +188,10 @@
 <script src="ecom.js"></script>
 <script src="../product-performance/try.js"></script>
 <script>
-TrySteps({ root: '#ecom', done: { 1: '[data-ins]', 2: '.ppa-sugtop [data-i], .ppa-inv' },
+TrySteps({ root: '#ecom', rateReview: true, done: { inv: '[data-run]', 1: '[data-ins]', 2: '.ppa-sugtop [data-i]' },
+  inv: async ctx => { let b = ctx.q('[data-run]'); if (!b) { ctx.q('[data-dv="all"]').click(); ctx.q('[data-tab="overview"]').click(); await ctx.wait(200); b = ctx.q('[data-run]'); } if (b) b.click(); },
   one: ctx => ctx.q('[data-ins]').click(),
-  ask: async ctx => { const s = ctx.q('.ppa-sugtop [data-i="0"]'); if (s && s.disabled) return ctx.openChat(); const t = ctx.q('[data-tab="overview"]'); if (t.getAttribute('aria-selected') !== 'true') { t.click(); await ctx.wait(250); } const inv = ctx.q('.ppa-inv[data-q="0"]') || ctx.q('.ppa-inv'); if (inv) inv.click(); else { await ctx.openChat(); const b = ctx.q('.ppa-sugtop [data-i="0"]'); if (b) b.click(); } } });
+  ask: async ctx => { await ctx.openChat(); const b = ctx.q('.ppa-sugtop [data-i="1"]:not([disabled])'); if (b) b.click(); } });
 </script>
 </body>
 </html>

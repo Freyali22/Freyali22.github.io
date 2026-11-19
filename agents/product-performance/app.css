@@ -398,3 +398,27 @@ html.try-duo .ins-sheet{width:min(960px,100%)}
 @keyframes tryPulse{0%,100%{box-shadow:0 0 0 0 rgba(164,71,31,0)}45%{box-shadow:0 0 0 6px rgba(164,71,31,.25)}}
 @media (max-width:760px){.try-steps{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.try-steps .try-next,.try-steps .try-next em{animation:none}.ppa-fb.try-pulse{animation:none}}
+/* agent pages, 11/18 layout: one-line head + proof line, steps above the agent */
+.page-head.compact{padding:44px 0 22px}
+.page-head.compact h1{font-size:clamp(34px,4.2vw,50px)}
+.page-head.compact .lede{font-size:18px;margin-top:12px}
+.proof{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;font-size:14px;color:var(--muted)}
+.proof b{color:var(--ink);font-weight:600}
+.proof span+span{padding-left:22px;border-left:1px solid var(--rule)}
+.page-head.compact + .try{padding-top:8px}
+.try-root > .try-steps{margin:0 0 18px}
+.story-sec .meta{margin-top:26px}
+.ppa-chat.run{width:min(600px,100%)}
+/* agent run: the business question first; each step shows its tool call, then the result */
+.ppa-biz{border-left:3px solid var(--accent);background:#fff8ef;border-radius:0 10px 10px 0;padding:10px 14px;display:grid;gap:4px}
+.ppa-biz .sn{font:500 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.ppa-biz p{font:500 15px/1.45 var(--sans);color:var(--ink)}
+.ppa-step .wk{font:500 12px var(--mono);color:var(--muted)}
+.ppa-step.working{border-style:dashed}
+@media (prefers-reduced-motion:no-preference){.ppa-step .wk i{display:inline-block;animation:wkDots 1s steps(3) infinite}}
+@keyframes wkDots{50%{opacity:.25}}
+.ppa-step .dec{font-weight:500;color:var(--ink);font-size:13.5px}
+.ppa-step .ppa-call{opacity:.85;font-size:12.5px}
+.ppa-rec .own{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--ink-2)}
+.ppa-rec .own b{font:500 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:6px}
+

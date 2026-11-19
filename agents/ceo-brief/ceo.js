@@ -11,7 +11,7 @@
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const REGIONS = ['North America', 'Europe', 'Asia Pacific', 'Japan'];
   const BRANDS = ['Studio', 'Outlet'];
-  const FLOOR = 0.70, MATERIAL = 25000; // a region-day is "behind" below 70% of its own normal TY/LY ratio and $25K short
+  const FLOOR = 0.70, MATERIAL = 25000; // anomaly signal: a region-day below 70% of its own normal TY/LY ratio and $25K short
   let D, N, flags, asOf;
   const st = { tab: 'sched', tf: 'mtd', brand: 'all', region: 'all', day: 0 };
 
@@ -27,21 +27,26 @@
   const dlabel = i => dt(i).toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + (dt(i).getMonth() + 1) + '/' + dt(i).getDate();
   const monthName = i => dt(i).toLocaleDateString('en-US', { month: 'long' });
 
-  // ---------------------------------------------------------------- freshness (load-lag flags)
+  // ---------------------------------------------------------------- freshness: completeness from the load log, low sales as a separate anomaly signal
   const median = a => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  const tlabel = s => { const d = new Date(s.slice(0, 10) + 'T12:00:00'), h = +s.slice(11, 13); return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${d.getMonth() + 1}/${d.getDate()} ${h % 12 || 12}:${s.slice(14, 16)} ${h < 12 ? 'am' : 'pm'}`; };
   function computeFlags() {
-    const out = [];
+    const low = [], inc = [];
     D.rows.forEach((r, ri) => {
+      r.load.forEach(([got, exp, at], i) => { if (got < exp) inc.push({ i, ri, region: r.region, brand: r.brand, got, exp, at }); });
       const ratio = r.sales.map(([t, l]) => t / l);
       ratio.forEach((x, i) => {
         const typical = median(ratio.filter((_, j) => j !== i)), short = typical * r.sales[i][1] - r.sales[i][0];
-        if (x < FLOOR * typical && short > MATERIAL) out.push({ i, ri, region: r.region, brand: r.brand, of: x / typical, short });
+        if (x < FLOOR * typical && short > MATERIAL) low.push({ i, ri, region: r.region, brand: r.brand, of: x / typical, short });
       });
     });
     let a = N - 1;
-    while (a > 0 && out.some(f => f.i === a)) a--;
-    return { all: out, asOf: a, weak: out.filter(f => f.i <= a), lag: out.filter(f => f.i > a) };
+    while (a > 0 && inc.some(f => f.i === a)) a--; // the brief stops at the last day every feed is in
+    const partial = f => inc.some(g => g.i === f.i && g.ri === f.ri);
+    // weak = low sales on a fully loaded day · lag = feeds still missing after the as-of day · gaps = missing feeds on an earlier day
+    return { all: low, asOf: a, weak: low.filter(f => f.i <= a && !partial(f)), lag: inc.filter(f => f.i > a), gaps: inc.filter(f => f.i <= a) };
   }
+  const feedsIn = fs => { const got = fs.reduce((s, f) => s + f.got, 0), exp = fs.reduce((s, f) => s + f.exp, 0), at = fs.map(f => f.at).sort().pop(); return { got, exp, at }; };
 
   // ---------------------------------------------------------------- engine
   const inScope = (r, sc) => (sc.brand === 'all' || r.brand === sc.brand) && (sc.region === 'all' || r.region === sc.region);
@@ -57,6 +62,7 @@
   function view(sc) {
     const e = Math.min(sc.day, asOf), [a, b] = win(sc.tf, e);
     const rows = D.rows.filter(r => inScope(r, sc));
+    if (!rows.length) return { sc, e, a, b, rows, empty: true }; // e.g. Outlet has no stores in Asia Pacific
     const [t, l] = sum(rows, 'sales', a, b), [ct, cl] = sum(rows, 'comp', a, b), [gt, gl] = sum(rows, 'gm', a, b);
     const [nt, nl] = sum(rows, 'new', a, b), [zt] = sum(rows, 'genz', a, b);
     const node = rs => { const [x, y] = sum(rs, 'sales', a, b); return { t: x, l: y, g: gr(x, y), c: (x - y) / l * 100, local: localGrowth(rs, a, b) }; };
@@ -79,6 +85,11 @@
       newG: gr(nd[0], nd[1]), newShare: nd[0] / T * 100, genzG: gr(gz[0], gz[1]) };
   }
   const scopeName = sc => sc.brand === 'all' && sc.region === 'all' ? D.brand : [sc.brand === 'all' ? '' : sc.brand, sc.region === 'all' ? '' : sc.region].filter(Boolean).join(' ');
+  const noStores = sc => `There are no ${esc(sc.brand)} stores in ${esc(sc.region)} — ${esc(sc.brand)} trades in ${andList(REGIONS.filter(rg => D.rows.some(r => r.brand === sc.brand && r.region === rg)))}. Nothing to report for this scope.`;
+  // weekly product & customer data is one fixed snapshot (11/1–11/14); say so when the selected day is earlier
+  const snap = v => { const live = v.e >= D.days.indexOf(D.weekly.through);
+    return live ? { title: 'month to date from weekly product &amp; customer data, 11/1–11/14', short: 'month to date, 11/1–11/14', stamp: 'Month to date · 11/1–11/14, weekly data', line: 'Month to date, 11/1–11/14: weekly product data runs through the last full week, Sat 11/14.' }
+      : { title: 'latest weekly product &amp; customer data, 11/1–11/14 · does not follow the selected day', short: 'latest snapshot, 11/1–11/14, not the selected day', stamp: 'Latest weekly data · 11/1–11/14, not the selected day', line: `Latest weekly product data, 11/1–11/14 — a fixed snapshot that does not follow the selected day (${dlabel(v.e)}).` }; };
   const andList = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
 
   // ---------------------------------------------------------------- the read (rules, no LLM; pinned to month to date)
@@ -123,45 +134,47 @@
   const P = {
     merch: ['SVP Merchandising', 'email thread, 6 replies', 'Mon 7:12 pm'], cfo: ['CFO', 'email', 'Mon 6:40 pm'],
     jp: ['Japan Region Lead', 'email + calendar update', 'Mon 9:58 pm'], eu: ['Europe Region Lead', 'email', 'Thu 11/12'],
-    fin: ['VP Finance', 'email', 'Mon 5:05 pm'], chair: ['Board Chair', 'email', 'Fri 11/13'], dig: ['Digital Lead', 'email', 'Wed 11/11'],
+    fin: ['VP Finance', 'email', 'Mon 5:05 pm'], chair: ['Board Chair', 'email', 'Fri 11/13 7:20 pm'], dig: ['Digital Lead', 'email', 'Wed 11/11'],
   };
+  // one id per business task: a task that shows in two sections (e.g. "What matters most" and "Your actions") shares it,
+  // so resolving one card resolves both and the open count is of tasks, not cards
   function schedule(F) {
     const jpLine = `${b(F.jp.g)} month to date, but ${b(F.jp.local)} in local currency`;
     return {
       headline: `Two decisions close this week — the Outlet holiday markdown and the board outlook — and ${F.behind.length === 1 ? `${F.behind[0].name} is the one region behind last year` : `${andList(F.behind.map(r => r.name))} are behind last year`}.`,
       what: [
-        { id: 'w1', html: `<b>Outlet holiday markdown is undecided.</b> Merchandising wants 30% on outerwear, Finance wants 25%; Black Friday signage locks Fri 11/20.`, from: P.merch,
+        { id: 'markdown', html: `<b>Outlet holiday markdown is undecided.</b> Merchandising wants 30% on outerwear, Finance wants 25%; Black Friday signage locks Fri 11/20.`, from: P.merch,
           draft: ['SVP Merchandising', 'Re: Outlet holiday markdown', "Let's settle it at today's 2 pm review. Please bring the margin impact of both 25% and 30% so we can decide in the room."] },
-        { id: 'w2', html: `<b>Board outlook is due this week.</b> The CFO needs your comments on page 4 by Thursday, and you promised the board chair the holiday outlook by Friday.`, from: P.cfo,
-          draft: ['CFO', 'Re: Board deck — outlook page', 'Thanks — two comments on page 4. Lead with month-to-date growth vs last year, then show Japan in local currency so the currency effect is clear. Happy to review again Thursday morning.'] },
-        { id: 'w3', html: `<b>Japan is the one region behind last year</b> — ${jpLine}. The Japan lead wants agreement on the Outlet store calendar this week.`, from: P.jp,
+        { id: 'board', html: `<b>Board outlook is due this week.</b> The CFO's email asks for your comments on page 4 by Thursday, and you promised the board chair the holiday outlook by Friday.`, from: P.cfo,
+          draft: ['CFO', 'Re: Board deck — outlook page', "Thanks — I'll go through page 4 before Thursday. Could you confirm it leads with month-to-date growth vs last year and shows Japan in local currency, so the currency effect is clear?"] },
+        { id: 'japan', html: `<b>Japan is the one region behind last year</b> — ${jpLine}. The Japan lead wants agreement on the Outlet store calendar this week.`, from: P.jp,
           draft: ['Japan Region Lead', 'Re: November and the Outlet calendar', '4:30 today works. Please bring the Outlet store calendar and your view on how much of the gap is currency.'] },
       ],
       actions: [
-        { id: 'a1', hot: true, when: 'Today · before 2 pm', title: 'Decide the Outlet holiday markdown: 25% or 30%',
+        { id: 'markdown', hot: true, when: 'Today · before 2 pm', title: 'Decide the Outlet holiday markdown: 25% or 30%',
           body: 'Merchandising wants 30% to clear outerwear depth; Finance wants 25% to protect margin. Both bring scenarios to the 2 pm review.',
-          rec: `Ask for the 25% case's margin impact before the meeting — it's missing from the pre-read.`, from: P.merch,
-          draft: ['VP Finance', '25% markdown scenario', "Could you add the margin impact of the 25% case to the scenarios file before 2 pm? It's the one number we don't have yet."] },
-        { id: 'a2', when: 'By Thursday', title: 'Comment on the board outlook page', body: 'The CFO shared page 4 of the board deck and asked for your edits on the holiday outlook framing.',
-          rec: 'Approve with two edits: lead with growth vs last year, and show Japan in local currency.', from: P.cfo,
-          draft: ['CFO', 'Re: Board deck — outlook page', 'Thanks — two comments on page 4. Lead with month-to-date growth vs last year, then show Japan in local currency so the currency effect is clear.'] },
-        { id: 'a3', inferred: true, when: 'This week', title: 'Set up the Europe store-openings call', body: 'You offered the Europe lead a call on the spring openings "early this week". Nothing is on the calendar yet.',
+          rec: "Finance's email says the 25% case's margin impact isn't in the scenarios file yet — ask for it before the meeting.", from: P.fin,
+          draft: ['VP Finance', '25% markdown scenario', "Your note says the 25% case's margin impact isn't in the scenarios file yet. Could you add it before 2 pm so we can compare both cases in the room?"] },
+        { id: 'board', when: 'By Thursday', title: 'Comment on the board outlook page', body: "The CFO's email shares page 4 of the board deck and asks for your edits on the holiday outlook framing. The page is an attachment, so it isn't read here.",
+          rec: 'Read page 4 with two checks from the Sales tab: does it lead with growth vs last year, and does it show Japan in local currency?', from: P.cfo,
+          draft: ['CFO', 'Re: Board deck — outlook page', "Thanks — I'll go through page 4 before Thursday. Could you confirm it leads with month-to-date growth vs last year and shows Japan in local currency, so the currency effect is clear?"] },
+        { id: 'europe', inferred: true, when: 'This week', title: 'Set up the Europe store-openings call', body: 'You offered the Europe lead a call on the spring openings "early this week". Nothing is on the calendar yet.',
           rec: "Offer Thursday 8 am — it's the only slot before the board deck locks.", from: P.eu,
           draft: ['Europe Region Lead', 'Store openings call', 'Sorry for the delay — does Thursday at 8 am New York time work for the spring openings call?'] },
       ],
       meetings: [
         { time: '9:30 am', dur: '45 min', title: 'Weekly leadership sync', body: 'Standing agenda; holiday readiness is the first item.', pill: ['solid', '2 files'], files: ['Holiday readiness.pptx', 'Ops dashboard'],
           bring: `Company ${b(F.v.g)} vs LY month to date, comp ${b(F.v.comp)}. ${andList(F.carry)} carry the growth.`, link: 'The read' },
-        { time: '2:00 pm', dur: '1 hr', title: 'Holiday pricing review', decision: true, body: 'Merchandising and Finance each bring a markdown scenario for Outlet outerwear.', pill: ['warm', '1 file · gap'], files: ['Markdown scenarios.xlsx', 'no margin impact for the 25% case'],
+        { time: '2:00 pm', dur: '1 hr', title: 'Holiday pricing review', decision: true, body: 'Merchandising and Finance each bring a markdown scenario for Outlet outerwear.', pill: ['warm', '1 file · gap'], files: ['Markdown scenarios.xlsx', "Finance's email: 25% case margin impact not added yet"],
           bring: `${F.w.fastest.name} is the fastest-growing category, ${b(F.w.fastest.g)} vs LY.<br>Outlet is ${b(F.B.Outlet.g)} vs LY, against Studio ${b(F.B.Studio.g)}.`, link: 'Insights summary' },
         { time: '4:30 pm', dur: '30 min', title: 'Japan check-in', tentative: true, body: 'The November gap and the Outlet store calendar.', pill: ['dash', 'no pre-read'], files: [],
           bring: `Japan is ${b(F.jp.g)} vs LY in dollars, but ${b(F.jp.local)} in local currency.<br>${F.jp && F.v.brands.map(br => { const r = br.regions.find(x => x.name === 'Japan'); return r ? `${br.name} Japan ${b(r.g)}` : ''; }).filter(Boolean).join(', ')}.`, link: 'Drill down' },
       ],
       commit: [
-        { id: 'c1', age: '4 days', warm: true, text: "You told the board chair you'd share the holiday outlook by Friday. No draft is on file yet.", from: P.chair,
+        { id: 'chair', age: '4 days', warm: true, text: "You told the board chair you'd share the holiday outlook by Friday. No draft is on file yet.", from: P.chair,
           draft: ['Board Chair', 'Re: Holiday outlook', 'A quick note that the holiday outlook will reach you Friday as promised, after the CFO and I finish the board page Thursday.'] },
-        { id: 'c2', age: '6 days', text: 'You promised the Digital lead feedback on the checkout redesign "by end of last week".', from: P.dig,
-          draft: ['Digital Lead', 'Re: Checkout redesign', 'Apologies for the delay. I like the one-page checkout; my one ask is to keep guest checkout as visible as sign-in. Happy to go ahead.'] },
+        { id: 'checkout', age: '6 days', text: 'You promised the Digital lead feedback on the checkout redesign "by end of last week".', from: P.dig,
+          draft: ['Digital Lead', 'Re: Checkout redesign', "Apologies for the delay on the checkout redesign. Could you walk me through it this week? Thursday afternoon or Friday morning both work — I'll come back with feedback straight after."] },
       ],
       ahead: [['Wed 11/18', 'Japan store-calendar review · Q4 hiring sign-off'], ['Thu 11/19', 'Board outlook page due to the CFO', 'deadline'],
         ['Fri 11/20', 'Holiday outlook to the board chair · signage locks', 'promised'], ['Mon 11/23', 'Black Friday week starts — markdown goes live Fri', "needs today's decision"]],
@@ -180,10 +193,10 @@
   const sec = (num, title, count, inner) => `<details class="sx" open><summary><i>${num}</i><b>${title}</b><span class="cnt">${count}</span></summary><div class="sxb">${inner}</div></details>`;
   function schedTab() {
     const S = schedule(facts()), done = readLS(RES_KEY, []);
-    const ids = [...S.what, ...S.actions, ...S.commit].map(x => x.id), open = ids.filter(i => !done.includes(i)).length;
+    const ids = [...new Set([...S.what, ...S.actions, ...S.commit].map(x => x.id))], open = ids.filter(i => !done.includes(i)).length;
     const item = (it, inner) => `<div class="it${done.includes(it.id) ? ' done' : ''}" data-item="${it.id}">${inner}${tools(it)}</div>`;
     const what = `<div class="hlbox">${esc(S.headline)}</div><div class="items">${S.what.map(it => item(it, `<p>${it.html}</p>`)).join('')}</div>
-      <details class="fn"><summary>How this was assembled, and what it cannot see</summary>Generated 6:05 am · Email reviewed: 64 messages since Fri 6 pm, 22 read in full · Calendar reviewed: 9 events, today + 4 business days · Limitations: attachments are listed, not read.</details>`;
+      <details class="fn"><summary>How this was assembled, and what it cannot see</summary>Generated Tue 11/17 6:05 am ET · Email reviewed: 64 messages since Fri 6 pm, 22 read in full, plus 2 older threads still open from last week (Wed 11/11, Thu 11/12) · Calendar reviewed: 12 events, today + 4 business days — 9 today (3 material, 6 routine), 2 on Wed 11/18 and 1 on Mon 11/23; deadlines and promises come from email · Limitations: attachments are listed, not read — facts about them come from the email that sent them.</details>`;
     const acts = S.actions.map(a => `<div class="act${a.hot ? ' hot' : ''}${done.includes(a.id) ? ' done' : ''}" data-item="${a.id}"><div class="when">${esc(a.when)}${a.inferred ? ' <span class="pl gold">Inferred</span>' : ''}</div><h3>${esc(a.title)}</h3><p>${esc(a.body)}</p><div class="rec">${esc(a.rec)}</div>${tools(a)}</div>`).join('');
     const mtgs = S.meetings.map(m => `<div class="tl"><div class="tm">${m.time}<small>${m.dur}</small></div><div class="mtg">
         <div class="t"><b>${esc(m.title)}${m.decision ? '<span class="dec">Decision</span>' : ''}${m.tentative ? ' <span class="pl gold">Tentative</span>' : ''}</b></div>
@@ -205,9 +218,9 @@
   function banner() {
     if (st.day <= asOf) return '';
     const lag = flags.lag.filter(f => f.i <= st.day), day = lag.length ? lag[lag.length - 1].i : st.day;
-    const byReg = {}; lag.filter(f => f.i === day).forEach(f => { byReg[f.region] = byReg[f.region] || { of: [], short: 0 }; byReg[f.region].of.push(f.of); byReg[f.region].short += f.short; });
-    const regs = Object.entries(byReg);
-    return `<div class="fresh" role="status"><b>NOT UPDATED</b>${andList(regs.map(r => r[0]))} ${regs.length > 1 ? 'have' : 'has'} not finished loading ${dlabel(day)} — ${regs.map(([r, x]) => `${r} is at ${Math.round(Math.min(...x.of) * 100)}% of its normal ${dt(day).toLocaleDateString('en-US', { weekday: 'long' })} (${money(x.short)} outstanding)`).join('; ')}. Every figure is shown through <b class="asof">${dlabel(asOf)}</b>.</div>`;
+    const byReg = {}; lag.filter(f => f.i === day).forEach(f => (byReg[f.region] = byReg[f.region] || []).push(f));
+    const regs = Object.entries(byReg).map(([r, fs]) => [r, feedsIn(fs)]);
+    return `<div class="fresh" role="status"><b>NOT UPDATED</b>${andList(regs.map(r => r[0]))} ${regs.length > 1 ? 'have' : 'has'} not finished loading ${dlabel(day)} — ${regs.map(([r, x]) => `the load log shows ${x.got} of ${x.exp} ${r} store and eCom feeds in (last update ${tlabel(x.at)})`).join('; ')}. Every figure is shown through <b class="asof">${dlabel(asOf)}</b>.</div>`;
   }
   function kpis(v) {
     const k = (l, val, d) => `<div class="ppa-kpi"><div class="l">${l}</div><div class="v">${val}</div><div class="d">${d}</div></div>`;
@@ -227,32 +240,41 @@
     const m = mStart(Math.min(st.day, N - 1)), end = st.day, sc = st, rows = D.rows.filter(r => inScope(r, sc)), bars = [];
     for (let i = m; i <= end; i++) { const [t, l] = sum(rows, 'sales', i, i); bars.push({ i, t, l, weak: flags.weak.some(f => f.i === i && inScope(D.rows[f.ri], sc)), lag: i > asOf }); }
     const max = Math.max(...bars.map(x => Math.max(x.t, x.l)));
-    return `<h5>Daily net sales · ${monthName(m)} ${dt(m).getDate()}–${dt(end).getDate()}</h5><div class="bars">${bars.map(x => `<i class="${x.weak ? 'weak' : ''}${x.lag ? ' late' : ''}" style="height:${(x.t / max * 100).toFixed(1)}%" data-tip="${esc(dlabel(x.i))} · ${money(x.t)} · ${pct(gr(x.t, x.l))} vs LY${x.weak ? ' · weak day, fully loaded' : ''}${x.lag ? ' · still loading' : ''}"></i>`).join('')}</div>
+    return `<h5>Daily net sales · ${monthName(m)} ${dt(m).getDate()}–${dt(end).getDate()}</h5><div class="bars">${bars.map(x => `<i class="${x.weak ? 'weak' : ''}${x.lag ? ' late' : ''}" style="height:${(x.t / max * 100).toFixed(1)}%" data-tip="${esc(dlabel(x.i))} · ${money(x.t)} · ${pct(gr(x.t, x.l))} vs LY${x.weak ? ' · unusually low, every feed loaded' : ''}${x.lag ? ' · still loading' : ''}"></i>`).join('')}</div>
       <div class="bx">${bars.map((x, k) => `<span>${k === 0 || k === bars.length - 1 || dt(x.i).getDate() % 5 === 0 ? dt(x.i).getDate() : ''}</span>`).join('')}</div>`;
   }
   function dataNotes(sc) {
     const weak = {}; flags.weak.filter(f => inScope(D.rows[f.ri], sc) && f.i >= mStart(asOf)).forEach(f => { weak[f.i] = weak[f.i] || []; weak[f.i].push(f); });
-    const li = Object.entries(weak).map(([i, fs]) => { const g = [...new Set(fs.map(f => f.region))]; return `<li class="warn"><b>${dlabel(+i)} is a weak day, not missing data</b><span>${andList(g)} came in at ${Math.round(Math.min(...fs.map(f => f.of)) * 100)}% of a normal ${dt(+i).toLocaleDateString('en-US', { weekday: 'long' })}, but every later day loaded in full — so ${dlabel(+i)} is complete and counts as is.</span></li>`; });
+    const wday = i => dt(i).toLocaleDateString('en-US', { weekday: 'long' });
+    const li = Object.entries(weak).map(([i, fs]) => {
+      const g = [...new Set(fs.map(f => f.region))], ld = feedsIn(D.rows.filter(r => inScope(r, sc) && g.includes(r.region)).map(r => { const [got, exp, at] = r.load[+i]; return { got, exp, at }; }));
+      return `<li class="warn"><b>${dlabel(+i)} is unusually low — data complete, worth a look</b><span>${andList(g)} came in at ${Math.round(Math.min(...fs.map(f => f.of)) * 100)}% of a normal ${wday(+i)}. The load log shows all ${ld.exp} of ${ld.exp} store and eCom feeds in (last ${tlabel(ld.at)}), so the day counts as is; the shortfall is in the sales, not the load. Worth asking ${andList(g)} what happened.</span></li>`; });
+    const byDay = fs => { const o = {}; fs.forEach(f => (o[f.i] = o[f.i] || []).push(f)); return Object.entries(o); };
+    byDay(flags.gaps.filter(f => inScope(D.rows[f.ri], sc) && f.i >= mStart(asOf))).forEach(([i, fs]) => { const x = feedsIn(fs);
+      li.push(`<li class="none"><b>${dlabel(+i)} is incomplete — requires validation</b><span>The load log shows ${x.got} of ${x.exp} ${andList([...new Set(fs.map(f => f.region))])} feeds in, so that day may be understated in every total that includes it.</span></li>`); });
     const lag = flags.lag.filter(f => inScope(D.rows[f.ri], sc));
-    if (lag.length) li.push(`<li class="none"><b>${dlabel(lag[0].i)} is still loading</b><span>${andList([...new Set(lag.map(f => f.region))])} is incomplete, so the brief stops at ${dlabel(asOf)}.</span></li>`);
+    if (lag.length) { const x = feedsIn(lag.filter(f => f.i === lag[0].i));
+      li.push(`<li class="none"><b>${dlabel(lag[0].i)} is still loading</b><span>The load log shows ${x.got} of ${x.exp} ${andList([...new Set(lag.map(f => f.region))])} store and eCom feeds in (last update ${tlabel(x.at)}), so the brief stops at ${dlabel(asOf)}.</span></li>`); }
     return li.length ? `<ul class="ppa-al">${li.join('')}</ul>` : '';
   }
   function insightsCard(v) {
     const w = v.weekly, s = x => `<span class="${cls(x)}">${pct(x)}</span>`;
     const same = w.fastest.name === w.most.name;
-    return `<div class="ppa-card ins"><h5>Insights summary · weekly product &amp; customer data, through Sat 11/14</h5><ul>
+    return `<div class="ppa-card ins"><h5>Insights summary · ${snap(v).title}</h5><ul>
       <li><b>Category</b> — ${same ? `${esc(w.fastest.name)} led the growth, ${s(w.fastest.g)} vs LY and ${pts(w.fastest.c)}` : `${esc(w.fastest.name)} grew fastest, net sales ${s(w.fastest.g)} vs LY; ${esc(w.most.name)} added the most, <span class="up">${pts(w.most.c)}</span> of growth`}; the biggest drag was ${esc(w.drag.name)}, ${s(w.drag.g)}.</li>
       <li><b>New customers &amp; Gen Z</b> — new-customer demand ${s(w.newG)} vs LY, ${Math.round(w.newShare)}% of all demand; new Gen Z ${s(w.genzG)}, ${w.genzG >= w.newG ? 'ahead of' : 'behind'} new customers overall.</li></ul></div>`;
   }
   function salesTab() {
-    const v = view(st), r = theRead(st);
+    const v = view(st), r = v.empty ? null : theRead(st);
     const seg = (k, opts) => `<div class="seg" role="group">${opts.map(([val, l]) => `<button type="button" data-${k}="${val}" aria-pressed="${st[k] === val}">${l}</button>`).join('')}</div>`;
-    return `<div class="ppa-filters ctl">
+    const filters = `<div class="ppa-filters ctl">
         <div class="ppa-f"><label>Time frame</label>${seg('tf', [['day', 'Day'], ['mtd', 'MTD'], ['qtd', 'QTD']])}</div>
         <div class="ppa-f"><label>Brand</label>${seg('brand', [['all', 'Both'], ['Studio', 'Studio'], ['Outlet', 'Outlet']])}</div>
         <div class="ppa-f"><label for="ceo-rg">Region</label><select id="ceo-rg" data-region-sel><option value="all">All regions</option>${REGIONS.map(x => `<option${st.region === x ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
         <div class="ppa-f"><label>Day</label><div class="stepper"><button type="button" data-step="-1" aria-label="Previous day"${st.day <= 1 ? ' disabled' : ''}>◀</button><b>${dlabel(st.day)}</b><button type="button" data-step="1" aria-label="Next day"${st.day >= N - 1 ? ' disabled' : ''}>▶</button></div></div>
-      </div>
+      </div>`;
+    if (v.empty) return `${filters}${banner()}<div class="ppa-card read"><h5>${esc(st.brand)} · ${esc(st.region)}</h5><p>${noStores(st)} Pick another brand or region.</p></div>`;
+    return `${filters}
       ${banner()}
       <div class="ppa-card read">${r.html}</div>
       <div class="ctxl">Tiles and table: <b>${st.tf === 'day' ? 'Day' : FRAME[st.tf]}</b> · ${periodLabel(v)} · vs the same days last year</div>
@@ -276,16 +298,16 @@
         <div class="stk-t" style="margin-top:6px">Volume</div><svg id="vlc" viewBox="0 0 640 70" preserveAspectRatio="none" role="img" aria-label="Daily volume"></svg><div class="stk-x" id="stkx"></div><div class="stip" id="stip" hidden></div></div>
         <div><table class="peer"><tr><th></th><th>Day</th><th>YTD</th></tr><tr class="me"><td>${D.brand}</td><td class="${cls(day)}">${pct(day)}</td><td>${pct(S.ytd)}</td></tr>
           ${S.peers.map(p => `<tr><td>${esc(p[0])}</td><td class="${cls(p[1])}">${pct(p[1])}</td><td>${pct(p[2])}</td></tr>`).join('')}<tr class="avg"><td>Peer average</td><td>${pct(peerAvg)}</td><td>${pct(ytdAvg)}</td></tr></table>
-          <details class="fn" open><summary>Interpretation</summary>Shares ${day - peerAvg >= 0 ? 'beat' : 'trailed'} the peer group by ${Math.abs(day - peerAvg).toFixed(1)} pt on ${vx.toFixed(1)}× normal volume, the morning the outerwear sell-out story ran. At $${S.close[n - 1].toFixed(2)} the stock sits ${Math.abs(vsMed).toFixed(0)}% ${vsMed < 0 ? 'below' : 'above'} the street's median target of $${S.target[2]}.</details></div></div></div>
+          <details class="fn" open><summary>Interpretation</summary>On ${dlabel(N - 1)} shares ${day - peerAvg >= 0 ? 'beat' : 'trailed'} the peer group by ${Math.abs(day - peerAvg).toFixed(1)} pt on ${vx.toFixed(1)}× normal volume. The move coincided with that morning's outerwear sell-out story; price data alone can't show the story caused it. At $${S.close[n - 1].toFixed(2)} the stock sits ${Math.abs(vsMed).toFixed(0)}% ${vsMed < 0 ? 'below' : 'above'} the street's median target of $${S.target[2]}.</details></div></div></div>
       <div class="ppa-grid even"><div class="ppa-card"><h5>Us in the news</h5><ul class="news">
-        ${item('FW', '7:40 am', `${D.brand}'s outerwear capsule sells out online in two hours`, `matches the Sales read — outerwear is the ${F.w.fastest.name === 'Outerwear' ? 'fastest-growing category' : 'a growing category'}, ${pct(F.outer.g)} vs LY.`)}
-        ${item('RL', 'Mon', `${D.brand} names a new head of Asia Pacific stores`, `Asia Pacific is ${pct(apac.g)} vs LY month to date; no action needed.`)}
+        ${item('FW', 'Mon 11/16 · 7:40 am', `${D.brand}'s outerwear capsule sells out online in two hours`, `consistent with the Sales read — outerwear is the ${F.w.fastest.name === 'Outerwear' ? 'fastest-growing category' : 'a growing category'}, ${pct(F.outer.g)} vs LY (weekly data, 11/1–11/14).`)}
+        ${item('RL', 'Mon 11/16 · 11:05 am', `${D.brand} names a new head of Asia Pacific stores`, `Asia Pacific is ${pct(apac.g)} vs LY month to date; no action needed.`)}
       </ul></div><div class="ppa-card"><h5>Competitive set</h5><ul class="news">
-        ${item('FW', 'Mon', 'Maison Verre cuts prices up to 40% ahead of Black Friday', "bears on today's 2 pm markdown decision for Outlet.")}
-        ${item('MS', '6:15 am', 'Halden &amp; Co raises full-year guidance on holiday pre-orders', 'peer demand is strong going into holiday; worth a line at the 9:30 sync.')}
-        ${item('RL', 'Mon', 'Northgate Group to close 30 stores in Europe', `Europe is our ${F.fast.name === 'Europe' ? 'fastest-growing region' : 'a growing region'}, ${pct(eu.g)} vs LY; watch for share gains.`)}
+        ${item('FW', 'Mon 11/16 · 2:30 pm', 'Maison Verre cuts prices up to 40% ahead of Black Friday', "bears on today's 2 pm markdown decision for Outlet.")}
+        ${item('MS', 'Tue 11/17 · 5:30 am', 'Halden &amp; Co raises full-year guidance on holiday pre-orders', 'peer demand is strong going into holiday; worth a line at the 9:30 sync.')}
+        ${item('RL', 'Mon 11/16 · 4:45 pm', 'Northgate Group to close 30 stores in Europe', `Europe is our ${F.fast.name === 'Europe' ? 'fastest-growing region' : 'a growing region'}, ${pct(eu.g)} vs LY; watch for share gains.`)}
       </ul></div></div>
-      <div class="tabnote">Outlets, headlines and prices are synthetic. Each "Why it matters" line is filled from the same numbers as the Sales tab.</div>`;
+      <div class="tabnote">Outlets, headlines and prices are synthetic. Headlines up to 6:00 am ET Tue 11/17, before the brief is generated; prices at the ${dlabel(N - 1)} close. Each "Why it matters" line is filled from the same numbers as the Sales tab.</div>`;
   }
   function drawStock() {
     const S = D.stock, N2 = S.close.length, px = S.close, vol = S.volume_m, days = S.days.map(x => new Date(x + 'T12:00:00'));
@@ -323,38 +345,41 @@
   const QS = [
     { q: 'Which product category grew the most month to date?', k: 'cat' },
     { q: 'How are new customers trending month to date?', k: 'new', frame: 'mtd' },
-    { q: 'How is Gen Z trending MTD?', k: 'genz' },
+    { q: 'What does the latest Gen Z data show?', k: 'genz' },
     { q: 'How are the Market Tote and other hero products performing MTD?', k: 'hero' },
   ];
   function answer(k) {
     const v = view(st), w = v.weekly, ledger = [], checks = [];
-    const c = (val, src) => { ledger.push({ val, src }); return `<span class="cite" data-src="${esc(src)}">${val}</span>`; };
-    const dir = (word, x, want) => checks.push({ ok: want === 'pos' ? x > 0 : x < 0, t: `"${word}" matches the sign of ${pct(x)}` });
     const scope = `${st.brand === 'all' ? 'both brands' : st.brand} · ${st.region === 'all' ? 'all regions' : st.region}`;
-    const wk = `Weekly · through Sat 11/14 · ${scope} · USD`, sources = [];
+    if (v.empty) return `<span class="tag no">Not in this brief</span><div class="hl">${noStores(st)}</div><div class="stamp">${esc(scope)}</div>`;
+    const c = (val, src) => { ledger.push({ val, src }); return `<span class="cite" data-src="${esc(src)}">${val}</span>`; };
+    // direction words: "up"/"down" need the sign, "flat" needs a change that rounds to 0.0%
+    const dir = (word, x, want) => checks.push({ ok: want === 'pos' ? x >= 0.05 : want === 'neg' ? x <= -0.05 : Math.abs(x) < 0.05, t: `"${word}" matches ${pct(x)}` });
+    const sn = snap(v), wk = `${sn.stamp} · ${scope} · USD`, sources = [];
     let head, lis = [];
     if (k === 'cat') {
       const byG = [...w.cats].sort((x, y) => y.g - x.g), byC = [...w.cats].sort((x, y) => y.c - x.c);
       head = w.fastest.name === w.most.name ? `${w.fastest.name} grew the most — net sales ${c(pct(w.fastest.g), `Insights summary › ${w.fastest.name} › vs LY`)} vs last year, adding ${c(pts(w.fastest.c), `Insights summary › ${w.fastest.name} › contribution`)}.`
         : `${w.fastest.name} grew fastest — net sales ${c(pct(w.fastest.g), `Insights summary › ${w.fastest.name} › vs LY`)} vs last year. ${w.most.name} added the most to growth, ${c(pts(w.most.c), `Insights summary › ${w.most.name} › contribution`)}.`;
-      lis.push(`The biggest drag is ${w.drag.name}, ${c(pct(w.drag.g), `Insights summary › ${w.drag.name} › vs LY`)}.`, 'From weekly product data, through the week ending Sat 11/14.');
+      lis.push(`The biggest drag is ${w.drag.name}, ${c(pct(w.drag.g), `Insights summary › ${w.drag.name} › vs LY`)}.`, sn.line);
       checks.push({ ok: byG[0].name === w.fastest.name && byC[0].name === w.most.name, t: '"fastest" and "added the most" match the ranked list' });
       sources.push('weekly product data');
       return pack(head, lis, ledger, checks, sources, wk);
     }
     if (k === 'new') {
-      head = `New customers are ${v.newG >= 0 ? 'up' : 'down'} ${c(pct(v.newG), 'Sales › New customers › vs LY')} on last year month to date — ${c(kfmt(v.newT), 'Sales › New customers')} so far.`;
-      dir(v.newG >= 0 ? 'up' : 'down', v.newG, v.newG >= 0 ? 'pos' : 'neg');
-      lis.push(`Their demand is ${c(pct(w.newG), 'Insights summary › New-customer demand › vs LY')} vs last year and ${c(Math.round(w.newShare) + '%', 'Insights summary › share of all demand')} of all demand (weekly customer data, through Sat 11/14).`,
+      const word = v.newG >= 0.05 ? 'up' : v.newG <= -0.05 ? 'down' : 'flat';
+      head = `New customers are ${word} ${word === 'flat' ? 'on last year month to date, ' : ''}${c(pct(v.newG), 'Sales › New customers › vs LY')}${word === 'flat' ? '' : ' on last year month to date'} — ${c(kfmt(v.newT), 'Sales › New customers')} so far.`;
+      dir(word, v.newG, { up: 'pos', down: 'neg', flat: 'flat' }[word]);
+      lis.push(`Their demand is ${c(pct(w.newG), 'Insights summary › New-customer demand › vs LY')} vs last year and ${c(Math.round(w.newShare) + '%', 'Insights summary › share of all demand')} of all demand (${sn.short}, weekly customer data).`,
         `Gen Z makes up ${c(Math.round(v.genzShare) + '%', 'Sales › New customers › Gen Z share')} of new customers.`);
       sources.push('daily sales feed', 'weekly customer data');
       return pack(head, lis, ledger, checks, sources, `MTD · through ${dlabel(v.e)} · ${scope} · USD`);
     }
     if (k === 'genz') {
       const ahead = w.genzG >= w.newG;
-      head = `New Gen Z demand is ${c(pct(w.genzG), 'Insights summary › New Gen Z › vs LY')} vs last year — ${ahead ? 'ahead of' : 'behind'} new customers overall, ${c(pct(w.newG), 'Insights summary › New-customer demand › vs LY')}.`;
+      head = `In the weekly customer data (${sn.short}), new Gen Z demand is ${c(pct(w.genzG), 'Insights summary › New Gen Z › vs LY')} vs last year — ${ahead ? 'ahead of' : 'behind'} new customers overall, ${c(pct(w.newG), 'Insights summary › New-customer demand › vs LY')}.`;
       checks.push({ ok: ahead === (w.genzG >= w.newG), t: `"${ahead ? 'ahead' : 'behind'}" checked: ${pct(w.genzG)} vs ${pct(w.newG)}` });
-      lis.push(`Gen Z is ${c(Math.round(v.genzShare) + '%', 'Sales › New customers › Gen Z share')} of new customers ${st.tf === 'day' ? 'on ' + dlabel(v.e) : FRAME[st.tf]}.`,
+      lis.push(`Separately, the daily sales feed puts Gen Z at ${c(Math.round(v.genzShare) + '%', 'Sales › New customers › Gen Z share')} of new customers ${st.tf === 'day' ? 'on ' + dlabel(v.e) : FRAME[st.tf] + ' through ' + dlabel(v.e)}.`,
         'This brief reads Gen Z for new customers only — returning Gen Z customers are not in this brief.');
       checks.push({ ok: true, t: 'scope limit stated instead of guessed' });
       sources.push('weekly customer data');
@@ -363,7 +388,7 @@
     const hs = w.heroes, tote = hs.find(h => h.name === 'Market Tote'), others = hs.filter(h => h !== tote), fast = [...hs].sort((x, y) => y.g - x.g)[0], behind = hs.filter(h => h.g < 0);
     head = `The Market Tote is ${c(pct(tote.g), 'Weekly product data › Market Tote › vs LY')} vs last year — ${c(tote.share.toFixed(1) + '%', 'Weekly product data › Market Tote › share of net sales')} of net sales.`;
     others.forEach(h => lis.push(`${h.name} ${c(pct(h.g), `Weekly product data › ${h.name} › vs LY`)}${h === fast ? ', the fastest of the hero products' : ''}${behind.length === 1 && behind[0] === h ? ', the only hero product behind last year' : ''}.`));
-    lis.push('From weekly product data, through the week ending Sat 11/14.');
+    lis.push(sn.line);
     sources.push('weekly product data, not the daily sales feed');
     return pack(head, lis, ledger, checks, sources, wk);
   }
@@ -372,8 +397,9 @@
     // check 1: every number in the visible text sits inside a citation
     const tmp = document.createElement('div'); tmp.innerHTML = html;
     tmp.querySelectorAll('.cite').forEach(e => e.remove());
-    const loose = (tmp.textContent.replace(/Sat 11\/14|11\/\d+|week ending/g, '').match(/[+−-]?\$?\d[\d.,]*\s?(%|pts|K|M)?/g) || []);
-    const all = [{ ok: loose.length === 0, t: `${ledger.length} numbers, all cited${loose.length ? ` — uncited: ${loose.join(', ')}` : ' and match the page'}` }, ...checks, { ok: true, t: 'source named: ' + sources.join(' and ') }];
+    // dates (m/d) are labels, not figures; every other number must sit inside a citation
+    const loose = (tmp.textContent.replace(/\b\d{1,2}\/\d{1,2}\b|week ending/g, '').match(/[+−-]?\$?\d[\d.,]*\s?(%|pts|K|M)?/g) || []);
+    const all = [{ ok: loose.length === 0, t: `${ledger.length} figures, each cited to where it appears on the page${loose.length ? ` — uncited: ${loose.join(', ')}` : ''}` }, ...checks, { ok: true, t: 'source named: ' + sources.join(' and ') }];
     const blocked = all.some(x => !x.ok);
     return blocked ? `<div class="hl">Withheld — this answer failed a check, so it isn't shown.</div><div class="chk">${all.map(x => `<span class="${x.ok ? '' : 'bad'}">${x.ok ? '✓' : '✗'} ${esc(x.t)}</span>`).join('')}</div>`
       : html + `<div class="chk">${all.map(x => `<span>✓ ${esc(x.t)}</span>`).join('')}</div><div class="stamp">${esc(stamp)}</div>`;
@@ -383,53 +409,65 @@
   // same layout as the Product Performance Agent: a one-line hint, separate question boxes, then the scope note
   const sugHTML = () => {
     const v = view(st), scope = `${st.brand === 'all' ? 'both brands' : st.brand}, ${st.region === 'all' ? 'all regions' : st.region}`;
-    return `<div class="hint">I read the figures for <b>${FRAME[st.tf] === 'Day' ? dlabel(v.e) : (st.tf === 'day' ? dlabel(v.e) : FRAME[st.tf])}</b> through ${dlabel(v.e)}, ${esc(scope)}; weekly product data runs through Sat 11/14. Start with one of these —</div>
+    return `<div class="hint">I read the figures for <b>${FRAME[st.tf] === 'Day' ? dlabel(v.e) : (st.tf === 'day' ? dlabel(v.e) : FRAME[st.tf])}</b> through ${dlabel(v.e)}, ${esc(scope)}; product and customer answers use weekly data, 11/1–11/14. Start with one of these —</div>
       <div class="ppa-sugtop">${QS.map((x, i) => `<button type="button" data-i="${i}"${asked.has(i) ? ' disabled' : ''}>→ ${esc(x.q)}</button>`).join('')}
       <div class="ppa-scope"><b>What it covers:</b> the figures on this brief for the view you have selected, and the wording on its tabs. <b>Not:</b> email or calendar, plan, or anything outside this brief — those get "not in this brief" rather than a guess.</div></div>`;
   };
   function resetChat() { asked.clear(); log.innerHTML = sugHTML(); }
   const FB = 'ceo:feedback:v1', DEC_KEY = 'ceo:fb-decisions:v1';
   const REASONS = ['Wrong number', 'Not what I asked', 'Too vague', 'Other'];
-  const fbBar = i => `<div class="ppa-fb" data-fq="${i}"><span>Was this useful?</span><button type="button" data-rate="up" aria-label="Useful">👍</button><button type="button" data-rate="down" aria-label="Not useful">👎</button></div>`;
+  const fbBar = (i, sc) => `<div class="ppa-fb" data-fq="${i}" data-sc="${esc(JSON.stringify(sc))}"><span>Was this useful?</span><button type="button" data-rate="up" aria-label="Useful">👍</button><button type="button" data-rate="down" aria-label="Not useful">👎</button></div>`;
   const fbForm = i => `<div class="ppa-fbf" data-fq="${i}"><div class="h">What went wrong?</div><div class="chips">${REASONS.map(r => `<button type="button" data-reason="${r}" aria-pressed="false">${r}</button>`).join('')}</div><textarea maxlength="200" placeholder="Optional: what did you expect?" aria-label="What did you expect?"></textarea><div class="row"><span>Stays in your browser · goes into this week's review</span><button type="button" class="send" disabled>Send</button></div></div>`;
   const fbThanks = () => `<div class="ppa-fbdone">✓ Thanks — logged. <button type="button" class="ppa-link" data-fbr>See what the owner sees → Feedback review</button></div>`;
   function logFb(rec) {
     const all = readLS(FB, []); all.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: Date.now(), ...rec }); writeLS(FB, all);
+    if (rec.kind === 'ask') return; // every answered question is logged; only feedback pulses the review button
     const b2 = $('[data-fbr-open]'); if (b2) { b2.classList.remove('pulse'); void b2.offsetWidth; b2.classList.add('pulse'); setTimeout(() => b2.classList.remove('pulse'), 1600); }
   }
   // the synthetic week the owner reviews; the visitor's own ratings are added on top
   const REVIEW = {
-    wk: 46, headline: 'Most friction this week is about periods and scope, not wrong numbers.',
-    text: 'Executives asked <strong>64</strong> questions. The checker withheld <strong>1</strong> answer before anyone saw it; the bigger theme is <strong>5</strong> questions about "this quarter" answered as month to date. One theme needs a business decision before anyone can fix it.',
-    sig: { q: 64, prev: 57, up: 9, dn: 3, reph: 5, nodata: 4, flags: 1 },
+    wk: 46, prev: 57, headline: 'Most friction this week is about periods and scope, not wrong numbers.',
+    // the week's turns, one record per question asked: [how many, signals, theme row]. Every tile, theme count and
+    // the sentence above the tiles is counted from these records, so they cannot drift apart.
+    turns: [[40, {}], [9, { rate: 'up' }], [3, { rate: 'down' }, 0], [2, { reph: 1 }, 0], [3, { reph: 1 }], [4, { nodata: 1 }, 1], [2, { nodata: 1 }, 2], [1, { flag: 1 }, 3]],
     rows: [
-      { theme: '"This quarter" answered as month to date', ex: 'How is Japan doing this quarter?', src: '3 👎 · 2 rephrased', n: 5, dg: 'und', dl: 'Misread period', sug: 'Read the period from the question and switch the frame before answering, the way the new-customer question already does.', ai: 'fix' },
-      { theme: "Asks about plan, which this brief doesn't carry", ex: 'Are we ahead of plan in Europe?', src: '4 "not in this brief"', n: 4, dg: 'def', dl: 'Definition gap?', sug: 'Decide with Finance whether plan belongs in the brief. Until then, the answer says so.', ai: 'def' },
-      { theme: 'Wants the story behind a headline', ex: 'Why did Maison Verre cut prices?', src: '2 "not in this brief"', n: 2, dg: 'scope', dl: 'Out of scope', sug: 'News carries the headline and why it matters. Link the source in the answer instead.', ai: 'later' },
-      { theme: 'Checker withheld an answer', ex: 'Which region grew the most?', src: '1 checker flag', n: 1, dg: 'bug', dl: 'Bug', sug: 'The draft called Asia Pacific "the biggest" by contribution while the ranked list is by growth. Fix the wording rule and add a test.', ai: 'fix' },
+      { theme: '"This quarter" answered as month to date', ex: 'How is Japan doing this quarter?', dg: 'und', dl: 'Misread period', sug: 'Read the period from the question and switch the frame before answering, the way the new-customer question already does.', ai: 'fix' },
+      { theme: "Asks about plan, which this brief doesn't carry", ex: 'Are we ahead of plan in Europe?', dg: 'def', dl: 'Definition gap?', sug: 'Decide with Finance whether plan belongs in the brief. Until then, the answer says so.', ai: 'def' },
+      { theme: 'Wants the story behind a headline', ex: 'Why did Maison Verre cut prices?', dg: 'scope', dl: 'Out of scope', sug: 'News carries the headline and why it matters. Link the source in the answer instead.', ai: 'later' },
+      { theme: 'Checker withheld an answer', ex: 'Which region grew the most?', dg: 'bug', dl: 'Bug', sug: 'The draft called Asia Pacific "the biggest" by contribution while the ranked list is by growth. Fix the wording rule and add a test.', ai: 'fix' },
     ],
     done: [{ t: 'Japan answered in dollars only', d: 'fixed last week · local currency added to Japan answers · 1 regression test · 2 users told' },
       { t: '"Yesterday" read as the day still loading', d: 'fixed last week · answers stop at the last complete day · 1 regression test · 1 user told' }],
   };
   const DEC = [['fix', 'Fix now'], ['later', 'Later'], ['wont', "Won't fix"], ['def', 'Needs a definition']];
+  const SEED = REVIEW.turns.flatMap(([n, sig, theme]) => Array.from({ length: n }, () => ({ ...sig, theme })));
+  const seedCount = (pred, theme) => SEED.filter(t => (theme == null || t.theme === theme) && pred(t)).length;
+  const scLabel = sc => `${sc.brand === 'all' ? 'both brands' : sc.brand} · ${sc.region === 'all' ? 'all regions' : sc.region} · ${sc.tf === 'day' ? 'Day' : FRAME[sc.tf]} through ${dlabel(Math.min(sc.day, asOf))}`;
   function myRows(recs) {
-    return recs.filter(r => r.kind !== 'up').map(r => {
+    return recs.filter(r => r.kind !== 'up' && r.kind !== 'ask').map(r => {
       const base = { key: r.id, you: true, n: 1, ex: r.q, note: r.note };
       if (r.kind === 'nodata') return { ...base, theme: 'Typed question with no answer', src: '"not in this brief" reply', dg: 'scope', dl: 'Out of scope', sug: 'Not in the brief\'s answers yet. Add it, or say so in the chat\'s scope note.', ai: 'later' };
-      if (r.reason === 'Wrong number') { // re-run the answer and its checks before diagnosing
-        const k = QS.find(x => x.q === r.q), clean = k && !/✗|Withheld/.test(answer(k.k));
-        return { ...base, theme: 'You flagged a wrong number', src: '1 👎', dg: clean ? 'def' : 'bug', dl: clean ? 'Definition gap?' : 'Bug',
-          sug: clean ? 'The checks were re-run and every number matches the page, so the gap is likely the definition you expected.' : 'The re-run found a number that does not match. Fix it and add a test.', ai: clean ? 'def' : 'fix' };
+      if (r.reason === 'Wrong number') { // a reported discrepancy stays open until the owner triages it against the source
+        const k = QS.find(x => x.q === r.q), keep = { ...st };
+        if (r.sc) Object.assign(st, r.sc);
+        const rerun = k ? (/✗|Withheld/.test(answer(k.k)) ? 'fails a check' : 'passes the page checks — that rules out a citation or wording slip, not a source, unit or definition problem') : '';
+        Object.assign(st, keep);
+        return { ...base, theme: 'Reported discrepancy — pending triage', src: '1 👎 · "Wrong number"', dg: 'scope', dl: 'Pending triage',
+          sug: `Recorded as reported: the answer shown${r.shown ? ` ("${r.shown.slice(0, 140)}")` : ''}${r.sc ? ` and its scope (${scLabel(r.sc)})` : ''}.${rerun ? ` Re-running it in that scope ${rerun}.` : ''} The owner checks it against the source before calling it a bug or a definition gap.`, ai: '' };
       }
       const m = { 'Not what I asked': ['und', 'Misread question', 'Add this wording to the routing examples and the test set.', 'fix'], 'Too vague': ['und', 'Answer too thin', 'Add the follow-up you needed to this answer.', 'later'], Other: ['scope', 'Needs triage', 'Read the note; one report is not a pattern yet.', 'later'] }[r.reason];
       return { ...base, theme: r.reason === 'Other' ? 'Other feedback' : `"${r.reason}"`, src: '1 👎', dg: m[0], dl: m[1], sug: m[2], ai: m[3] };
     });
   }
   function feedbackReview() {
-    const R = REVIEW, sg = R.sig, recs = readLS(FB, []), dec = readLS(DEC_KEY, {});
-    const up = recs.filter(r => r.kind === 'up').length, dn = recs.filter(r => r.kind === 'down').length, nd = recs.filter(r => r.kind === 'nodata').length;
-    const mine = myRows(recs), rows = [...mine, ...R.rows.map((r, i) => ({ ...r, key: 'ceo-s' + i }))];
-    const you = k => (k ? ` · ${k} from you` : ''), qn = sg.q + nd, dq = sg.q - sg.prev;
+    const R = REVIEW, recs = readLS(FB, []), dec = readLS(DEC_KEY, {});
+    const sg = { q: SEED.length, up: seedCount(t => t.rate === 'up'), dn: seedCount(t => t.rate === 'down'), reph: seedCount(t => t.reph), nodata: seedCount(t => t.nodata), flags: seedCount(t => t.flag) };
+    const up = recs.filter(r => r.kind === 'up').length, dn = recs.filter(r => r.kind === 'down').length, nd = recs.filter(r => r.kind === 'nodata').length, asks = recs.filter(r => r.kind === 'ask').length;
+    const srcOf = i => [[seedCount(t => t.rate === 'down', i), '👎'], [seedCount(t => t.reph, i), 'rephrased'], [seedCount(t => t.nodata, i), '"not in this brief"'], [seedCount(t => t.flag, i), 'checker flag']].filter(x => x[0]).map(([n, l]) => `${n} ${l}${l === 'checker flag' && n > 1 ? 's' : ''}`).join(' · ');
+    const seeded = R.rows.map((r, i) => ({ ...r, key: 'ceo-s' + i, n: seedCount(() => true, i), src: srcOf(i) }));
+    const mine = myRows(recs), rows = [...mine, ...seeded];
+    const you = k => (k ? ` · ${k} from you` : ''), qn = sg.q + asks + nd, dq = qn - R.prev;
+    const text = `Executives asked <strong>${sg.q}</strong> questions. The checker withheld <strong>${sg.flags}</strong> answer${sg.flags === 1 ? '' : 's'} before anyone saw it; the bigger theme is <strong>${seeded[0].n}</strong> questions about "this quarter" answered as month to date. One theme needs a business decision before anyone can fix it.`;
     const tile = (l, v, d) => `<div><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`;
     const got = rows.filter(r => dec[r.key]), tally = got.length ? `You decided ${got.length} of ${rows.length}: ` + DEC.map(([k, l]) => [l, got.filter(r => dec[r.key] === k).length]).filter(x => x[1]).map(([l, n]) => `${n} ${l.toLowerCase()}`).join(' · ') : "Dashed = the agent's suggestion · click to decide";
     const row = r => `<div class="fbr-r${r.you ? ' you' : ''}">
@@ -441,8 +479,8 @@
       <div class="fbr-loop">${[['1 · Log', 'Every answer, 👍/👎 and reason'], ['2 · Weekly pull', "All of the week's turns"], ['3 · Agent drafts', 'Prioritises, summarises, suggests a fix', 'ai'], ['4 · Business decides', "Fix now · Later · Won't fix · Needs a definition", 'you'], ['5 · Fix + test', 'Each fix becomes a regression test'], ['6 · Tell the user', '"The thing you flagged is fixed"']].map(([h, t, c]) => `<div${c ? ` class="${c}"` : ''}><b>${h}</b>${t}</div>`).join('')}</div>
       <div class="ins-mast"><span>Feedback review · W${R.wk} · CEO Morning Brief · synthetic week</span><span>${rows.length} themes${mine.length ? ` · ${mine.length} from you` : ''}</span></div>
       <h2 class="fbr-hl">${esc(R.headline)}</h2>
-      <p class="fbr-p">${R.text}</p>
-      <div class="fbr-sig">${tile('Questions', qn, `${dq >= 0 ? '+' : M}${Math.abs(dq)} vs W${R.wk - 1}${you(nd)}`)}${tile('👍 / 👎', `${sg.up + up} / ${sg.dn + dn}`, `1 in ${Math.round(qn / (sg.up + up + sg.dn + dn))} answers rated${you(up + dn)}`)}${tile('Rephrased', sg.reph, 'asked again in new words')}${tile('"Not in this brief"', sg.nodata + nd, 'out of scope' + you(nd))}${tile('Checker flags', sg.flags, 'withheld before shown')}</div>
+      <p class="fbr-p">${text}</p>
+      <div class="fbr-sig">${tile('Questions', qn, `${dq >= 0 ? '+' : M}${Math.abs(dq)} vs W${R.wk - 1}${you(asks + nd)}`)}${tile('👍 / 👎', `${sg.up + up} / ${sg.dn + dn}`, `1 in ${Math.round(qn / (sg.up + up + sg.dn + dn))} answers rated${you(up + dn)}`)}${tile('Rephrased', sg.reph, 'asked again in new words')}${tile('"Not in this brief"', sg.nodata + nd, 'out of scope' + you(nd))}${tile('Checker flags', sg.flags, 'withheld before shown')}</div>
       <div class="fbr-h"><span>Ranked by the agent · you decide each row</span><span class="tally">${esc(tally)}</span></div>
       <div class="fbr-t"><div class="fbr-r hd"><div>Theme</div><div>Count</div><div>Diagnosis · suggested fix</div><div>Decision</div></div>${rows.map(row).join('')}</div>
       <div class="fbr-h"><span>Fixed last week · loop closed</span></div>
@@ -485,7 +523,9 @@
     if (x.frame && st.tf !== x.frame) { st.tf = x.frame; render(); } // this question reads the month-to-date frame, so select it the way a reader would
     asked.add(i);
     log.querySelectorAll('.ppa-sugtop [data-i]').forEach(b2 => (b2.disabled = asked.has(+b2.dataset.i)));
-    log.insertAdjacentHTML('beforeend', `<div class="q">${esc(x.q)}</div><div class="a">${answer(x.k)}${fbBar(i)}</div>`);
+    const sc = { brand: st.brand, region: st.region, tf: st.tf, day: st.day };
+    logFb({ kind: 'ask', q: x.q, sc }); // every answered question counts in the review, not just the rated ones
+    log.insertAdjacentHTML('beforeend', `<div class="q">${esc(x.q)}</div><div class="a">${answer(x.k)}${fbBar(i, sc)}</div>`);
     log.scrollTop = log.scrollHeight;
   }
   const words = t => new Set(t.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1));
@@ -499,8 +539,8 @@
     if (i >= 0) return ask(i);
     logFb({ kind: 'nodata', q: t.slice(0, 200) }); // a typed question with no answer is a signal for the weekly review
     const mail = /\b(email|e-mail|mail|inbox|calendar|meeting|schedule|cfo|chair|draft)\b/i.test(t);
-    log.insertAdjacentHTML('beforeend', `<div class="q">${esc(t)}</div><div class="a"><span class="tag no">Not in this brief</span><div class="hl">${mail ? "I don't read the Today's schedule tab — email and calendar stay out of the chat." : 'Not in this brief.'}</div>
-      <div class="demo">${mail ? "Where to find it: Today's schedule." : 'This public demo answers the four questions above from the brief\'s own figures. It is not connected to a language model, because a public page can\'t safely hold an API key. In production, any question about a figure, date or section of the brief gets an answer from the same facts — or "not in this brief".'}</div></div>`);
+    log.insertAdjacentHTML('beforeend', `<div class="q">${esc(t)}</div><div class="a"><span class="tag no">Not in this brief</span><div class="hl">${mail ? "I don't read the Today's priorities tab — email and calendar stay out of the chat." : 'Not in this brief.'}</div>
+      <div class="demo">${mail ? "Where to find it: Today's priorities." : 'This public demo answers the four questions above from the brief\'s own figures. It is not connected to a language model, because a public page can\'t safely hold an API key. In production, any question about a figure, date or section of the brief gets an answer from the same facts — or "not in this brief".'}</div></div>`);
     log.scrollTop = log.scrollHeight;
   }
 
@@ -525,8 +565,9 @@
     if (rs) {
       const id = rs.dataset.resolve, set = new Set(readLS(RES_KEY, [])), on = !set.has(id);
       on ? set.add(id) : set.delete(id); writeLS(RES_KEY, [...set]);
-      rs.closest('[data-item]').classList.toggle('done', on); rs.setAttribute('aria-pressed', on); rs.textContent = on ? '✓ Resolved' : '✓ Mark resolved';
-      const o = $('[data-open]'); if (o) o.textContent = $$('[data-item]').filter(x => !x.classList.contains('done')).length;
+      $$('[data-item]').filter(x => x.dataset.item === id).forEach(card => { // the same task can show in two sections
+        card.classList.toggle('done', on); const btn = card.querySelector('[data-resolve]'); btn.setAttribute('aria-pressed', on); btn.textContent = on ? '✓ Resolved' : '✓ Mark resolved'; });
+      const o = $('[data-open]'); if (o) o.textContent = new Set($$('[data-item]').filter(x => !x.classList.contains('done')).map(x => x.dataset.item)).size;
       return;
     }
     const cp = t.closest('[data-copy]');
@@ -546,7 +587,9 @@
     const ch = t.closest('.ppa-fbf [data-reason]');
     if (ch) { ch.parentElement.querySelectorAll('[data-reason]').forEach(x => x.setAttribute('aria-pressed', x === ch)); ch.closest('.ppa-fbf').querySelector('.send').disabled = false; return; }
     const sb = t.closest('.ppa-fbf .send');
-    if (sb) { const f = sb.closest('.ppa-fbf'), i = +f.dataset.fq; logFb({ kind: 'down', q: QS[i].q, reason: f.querySelector('[data-reason][aria-pressed=true]').dataset.reason, note: f.querySelector('textarea').value.trim().slice(0, 200) }); f.previousElementSibling.remove(); f.outerHTML = fbThanks(); return; }
+    if (sb) { const f = sb.closest('.ppa-fbf'), i = +f.dataset.fq; const bar = f.previousElementSibling, hl = f.parentElement.querySelector('.hl'); let sc = null; try { sc = JSON.parse(bar.dataset.sc); } catch (e) { /* older answer */ }
+      // keep what was reported as it was shown: question, answer text and the scope it was answered in
+      logFb({ kind: 'down', q: QS[i].q, reason: f.querySelector('[data-reason][aria-pressed=true]').dataset.reason, note: f.querySelector('textarea').value.trim().slice(0, 200), sc, shown: hl ? hl.textContent.trim().slice(0, 200) : '' }); bar.remove(); f.outerHTML = fbThanks(); return; }
     if (t.closest('[data-fbr]') || t.closest('[data-fbr-open]')) return openReview(t.closest('[data-fbr-open]') || $('[data-fbr-open]'));
     if (t.closest('[data-notes]')) { $('.ppa-notes').classList.toggle('open'); return; }
   });

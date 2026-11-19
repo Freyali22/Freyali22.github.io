@@ -82,3 +82,7 @@
   .ecom .fr,.ecom .fh{grid-template-columns:minmax(80px,1fr) 52px 50px 58px;gap:6px;padding:3px 4px}
   .ecom .fr .bar,.ecom .fh span:nth-child(2){display:none}
 }
+/* agent run: what the agent is reading on the dashboard right now */
+.ecom .ag-hl{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px;background:#fff8ef;transition:outline-color .2s}
+@media (prefers-reduced-motion:no-preference){.ecom .ag-hl{animation:agPulse 1.4s ease-in-out 2}}
+@keyframes agPulse{50%{outline-color:transparent}}
